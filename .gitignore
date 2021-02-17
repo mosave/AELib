@@ -1,0 +1,10 @@
+#Visual Studio stuff
+.vs
+.vs/
+*.sln
+*.skb
+
+
+# C extensions
+*.so
+
