@@ -1,6 +1,7 @@
 #include "Config.h"
 #include "Comms.h"
 #include "BMP280_DEV.h" // MartinL: https://github.com/MartinL1/BMP280_DEV
+#include "Barometer.h"
 
 static char* TOPIC_BaroTemperature PROGMEM = "Sensors/Temperature";
 static char* TOPIC_BaroPressure PROGMEM = "Sensors/Pressure";
@@ -11,7 +12,6 @@ static char* TOPIC_BaroValid PROGMEM = "Sensors/BarometerValid";
 #define baroValidityTimeout ((unsigned long)(30*1000))
 
 BMP280_DEV barometer( I2C_SDA, I2C_SCL );
-//BMP280_DEV barometer;
 
 float baroPressure;
 float baroTemperature;

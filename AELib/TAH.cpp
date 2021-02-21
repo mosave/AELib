@@ -3,6 +3,7 @@
 #include "Config.h"
 #include "Comms.h"
 #include "DHTesp.h" // beegee-tokyo DHTesp: https://github.com/beegee-tokyo/DHTesp
+#include "TAH.h"
 
 static char* TOPIC_TAHValid PROGMEM = "Sensors/TAHValid";
 static char* TOPIC_Temperature PROGMEM = "Sensors/Temperature";
@@ -101,8 +102,8 @@ void tahLoop() {
 
 void tahInit() {
   tahSensorFound = false;
-  if( TAH_Pin>0 ) {
-    dht.setup( TAH_Pin, DHTesp::DHT22 );
+  if( DHT_Pin>0 ) {
+    dht.setup( DHT_Pin, DHTesp::DHT22 );
     Serial.println(F("Detecting DHT sensor"));
     tahDetection = millis();
   } else {

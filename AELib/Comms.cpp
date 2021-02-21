@@ -9,6 +9,10 @@
 
 //#define Debug
 
+#ifndef MQTT_Port
+    #define MQTT_Port 1883
+#endif
+
 // Time to wait between connection attempts
 #define COMMS_ConnectTimeout ((unsigned long)(60 * 1000))
 // Number of connection attempts before resetting controller

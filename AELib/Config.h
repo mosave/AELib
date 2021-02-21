@@ -7,16 +7,22 @@
 // Leave undefined to disable version
 // #define VERSION "1.0"
 
-#define WIFI_SSID "AE Home"
-#define WIFI_Password  "chernayazhopa"
+
+//#define WIFI_SSID "SSID"
+//#define WIFI_Password  "WiFi password"
 
 // Device host name and MQTT ClientId, default is "ESP_%s" if not defined
 // Defining host name disables SetName MQTT command
 // "%s" will be replaced with device' MAC address
 //#define WIFI_HostName "NightLight"
 
-#define MQTT_Address "1.1.1.33"
+#define MQTT_Address "MQTT Broker address"
 #define MQTT_Port 1883
+
+#ifndef WIFI_SSID
+    #include "Config.AE.h"
+#endif
+
 
 // Top level of device' MQTT topic tree, default is "new/%s" if not defined
 // Defining root path disables SetRoot MQTT command
@@ -26,6 +32,14 @@
 // * "SecondFloor/Bedroom/%s"
 // * "%s"
 //#define MQTT_Root "test/%s/"
+
+// Define if I2S connected devices used e.g. Barometer
+//#define I2C_SDA 12
+//#define I2C_SCL 13
+
+// Define pin where DHT22 sensor connected to
+//#define DHT_Pin 13
+
 
 
 #define LED_Pin 2

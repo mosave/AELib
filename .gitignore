@@ -3,7 +3,8 @@
 .vs/
 *.sln
 *.skb
-
+Config.AE.h
+Backup.bat
 
 # C extensions
 *.so
