@@ -131,7 +131,7 @@
 
 ### LightMeter: Поддержка сенсора BH1750 (цифровой датчик освещенности)
 
-Используется библиотека [BH1750 by Christopher Laws](https://github.com/claws/BH1750)
+Используется библиотека [**BH1750** by Christopher Laws](https://github.com/claws/BH1750)
 
 Публикуемые MQTT топики:
  * **Sensors/LightMeter**: текущий уровень освещенности (Retained)
@@ -139,7 +139,7 @@
 
 ### TAH: Поддержка сенсора DHT22 и аналогичных
 
-Используется библиотека [DHTesp by beegee-tokyo](https://github.com/beegee-tokyo/DHTesp)
+Используется библиотека [**DHTesp** by beegee-tokyo](https://github.com/beegee-tokyo/DHTesp)
 
 В конфигурации необходимо определить номер пина, к которому подключен сенсор (константа DHT_Pin)
 
