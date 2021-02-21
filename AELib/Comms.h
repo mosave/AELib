@@ -15,6 +15,9 @@ void wifiDisable();
 // MQTT
 bool mqttConnected();
 
+// All these functions treat TOPIC_Name as template and complete it with MQTT_Root, mqttClientId and optional variables (if passed)
+// mqttTopic(...) function will be used to transform TOPIC_Name
+
 char* mqttTopic( char* buffer, char* TOPIC_Name );
 char* mqttTopic( char* buffer, char* TOPIC_Name, char* topicVar );
 char* mqttTopic( char* buffer, char* TOPIC_Name, char* topicVar1, char* topicVar2 );
@@ -23,8 +26,6 @@ bool mqttIsTopic( char* topic, char* TOPIC_Name );
 bool mqttIsTopic( char* topic, char* TOPIC_Name, char* topicVar );
 bool mqttIsTopic( char* topic, char* TOPIC_Name, char* topicVar1, char* topicVar2 );
 
-// TOPIC_Name is a template and will be completed with MQTT_Path, mqttClientId and optional topic' variables
-// mqttTopic(...) function will be used to transform TOPIC_Name
 void mqttSubscribeTopic( char* TOPIC_Name );
 void mqttSubscribeTopic( char* TOPIC_Name, char* topicVar );
 void mqttSubscribeTopic( char* TOPIC_Name, char* topicVar1, char* topicVar2 );
@@ -37,7 +38,7 @@ bool mqttPublish( char* TOPIC_Name, char* value, bool retained );
 bool mqttPublish( char* TOPIC_Name, char* topicVar, char* value, bool retained );
 bool mqttPublish( char* TOPIC_Name, char* topicVar1, char* topicVar2, char* value, bool retained );
 
-// Use raw topic name (no templating)
+// RAW topic names (no templating)
 void mqttSubscribeTopicRaw( char* topic );
 bool mqttPublishRaw( char* topic, long value, bool retained );
 bool mqttPublishRaw( char* topic, char* value, bool retained );
