@@ -40,6 +40,16 @@
 // Define pin where DHT22 sensor connected to
 //#define DHT_Pin 13
 
+// Define this to allow serial port output
+#define print(...) Serial.print( __VA_ARGS__ )
+#define printf(...) Serial.printf( __VA_ARGS__ )
+#define println(...) Serial.println( __VA_ARGS__ )
+
+// or disable serial port output...
+//#define print(...)
+//#define printf(...)
+//#define println(...)
+
 
 
 #define LED_Pin 2

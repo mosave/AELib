@@ -77,12 +77,12 @@ void tahLoop() {
     checkedOn = t;
     TempAndHumidity tah = dht.getTempAndHumidity();
     if( dht.getStatus() == DHTesp::ERROR_NONE ) {
-      //Serial.printf("t=%f, h=%f hindex=%f\n", tahTemperature, tahHumidity, dht.computeHeatIndex(tahTemperature, tahHumidity, false));
+      //printf("t=%f, h=%f hindex=%f\n", tahTemperature, tahHumidity, dht.computeHeatIndex(tahTemperature, tahHumidity, false));
       tahTemperature = tah.temperature;
       tahHumidity = tah.humidity;
       tahUpdatedOn = t;
       if( tahDetection>0 ) {
-        Serial.println(F("DHT sensor found"));
+        println(F("DHT sensor found"));
         tahDetection = 0;
         tahSensorFound = true;
       }
@@ -90,10 +90,10 @@ void tahLoop() {
     } else {
       if( (tahDetection>0) && (unsigned long)(t - tahDetection) > DetectionTimeout ) {
         tahDetection = 0;
-        Serial.println(F("DHT sensor not found"));
+        println(F("DHT sensor not found"));
       } else  if( tahSensorFound ) {
         publishStatus();
-        Serial.printf("DHT error: %d\n", dht.getStatus());
+        printf("DHT error: %d\n", dht.getStatus());
       }
     }
   }
@@ -104,7 +104,7 @@ void tahInit() {
   tahSensorFound = false;
   if( DHT_Pin>0 ) {
     dht.setup( DHT_Pin, DHTesp::DHT22 );
-    Serial.println(F("Detecting DHT sensor"));
+    println(F("Detecting DHT sensor"));
     tahDetection = millis();
   } else {
     tahDetection = 0;

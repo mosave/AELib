@@ -16,11 +16,11 @@
 
 
 void mqttConnect() {
-  Serial.println("Subscribing other topics");
+  println("Subscribing other topics");
 }
 
 bool mqttCallback(char* topic, byte* payload, unsigned int length) {
-    Serial.printf("mqttCallback(\"%s\", %u, %u )\r\n", topic, payload, length);
+    printf("mqttCallback(\"%s\", %u, %u )\r\n", topic, payload, length);
     return false;
 }
 
@@ -28,7 +28,7 @@ void setup() {
   ledInit( On );
   Serial.begin(115200);
   delay(500); 
-  Serial.println();  Serial.println("Initializing");
+  println();  println("Initializing");
 
   storageInit();
   commsInit();
@@ -56,22 +56,16 @@ void setup() {
 void loop() {
   Loop();
 
-  if( btnPressed( BTN0 ) ) {
-    bool state = !relayState( RELAY1 );
-    relaySetState( RELAY1, state );
-    relaySetState( RELAY2, state );
-    relaySetState( RELAY3, state );
-  }
-  if( btnLongPressed( BTN0 ) ) {
-    commsRestart();
-  }
-  if( btnVeryLongPressed( BTN0 ) ) {
-    if( wifiEnabled() ) {
-      wifiDisable();
-    } else {
-      wifiEnable();
-    }
-  }
+//  if( btnLongPressed( BTN0 ) ) {
+//    commsRestart();
+//  }
+//  if( btnVeryLongPressed( BTN0 ) ) {
+//    if( wifiEnabled() ) {
+//      wifiDisable();
+//    } else {
+//      wifiEnable();
+//    }
+//  }
   
   if( btnPressed( BTN1, BTN2 ) ) relaySwitch( RELAY3 ); 
   if( btnPressed( BTN1 ) ) relaySwitch( RELAY1 );

@@ -83,7 +83,7 @@ void lmLoop() {
       
       lmPublishStatus();
     } else {
-      //Serial.printf("t=%f, h=%f hindex=%f\n", tahTemperature, tahHumidity, dht.computeHeatIndex(tahTemperature, tahHumidity, false));
+      //printf("t=%f, h=%f hindex=%f\n", tahTemperature, tahHumidity, dht.computeHeatIndex(tahTemperature, tahHumidity, false));
       lmPublishStatus();
     }
   }
@@ -99,9 +99,9 @@ void lightMeterInit() {
   lmDetected = lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
   
   if( lmDetected ) {
-    Serial.println(F("BH1750 found"));
+    println(F("BH1750 found"));
     registerLoop( lmLoop );
   } else {
-    Serial.println(F("Error initialising BH1750"));
+    println(F("Error initialising BH1750"));
   }  
 }

@@ -4,7 +4,7 @@
 #include "Storage.h"
 
 // Turn on debug output
-#define Debug
+//#define Debug
 
 // Relays storage block Id
 #define RELAYS_StorageId 'R'
@@ -48,16 +48,16 @@ RelayConfig relaysConfig[RelaysSize];
 
 #ifdef Debug
 void relayShowStatus( Relay* relay ) {
-  Serial.print( (strlen(relay->name) > 0) ? relay->name : "Relay" );
-  Serial.print(F(" #")); Serial.print(relay->pin); Serial.print(": ");
-  Serial.print( relay->state ? "ON" : "Off" );
-  Serial.print( ", reported " ); Serial.print( relay->reportedState );
-  //  if( btn->wasPressed ) Serial.print(F("wasPressed "));
-  //  if( btn->wasShortPressed ) Serial.print(F("wasShortPressed "));
-  //  if( btn->wasLongPressed ) Serial.print(F("wasLongPressed "));
-  //  if( btn->wasVeryLongPressed ) Serial.print(F("wasVeryLongPressed "));
-  //  if( btn->wasReleased ) Serial.print(F("wasReleased "));
-  Serial.println();
+  print( (strlen(relay->name) > 0) ? relay->name : "Relay" );
+  print(F(" #")); print(relay->pin); print(": ");
+  print( relay->state ? "ON" : "Off" );
+  print( ", reported " ); print( relay->reportedState );
+  //  if( btn->wasPressed ) print(F("wasPressed "));
+  //  if( btn->wasShortPressed ) print(F("wasShortPressed "));
+  //  if( btn->wasLongPressed ) print(F("wasLongPressed "));
+  //  if( btn->wasVeryLongPressed ) print(F("wasVeryLongPressed "));
+  //  if( btn->wasReleased ) print(F("wasReleased "));
+  println();
 }
 #endif
 
@@ -70,6 +70,27 @@ Relay* relayFind( byte pin ) {
     if (relays[i].pin == pin ) return &relays[i];
   }
   return NULL;
+}
+
+char* relayGetName( byte pin ) {
+  Relay* relay = relayFind(pin);
+  return ( (relay != NULL) ? relay->name : NULL );
+}
+
+bool relayState( byte pin ) {
+  Relay* relay = relayFind( pin );
+  return ( (relay != NULL) && relay->state );
+}
+
+bool relaySetState( byte pin, bool state ) {
+  Relay* relay = relayFind( pin );
+  if ( relay == NULL ) return false;
+  relay->state = state;
+  return relay->state;
+}
+
+bool relaySwitch( byte pin ) {
+  return relaySetState( pin, !relayState(pin) );
 }
 
 void relayRegister( byte pin, char* name, bool inverted = false ) {
@@ -94,29 +115,6 @@ void relayRegister( byte pin, char* name, bool inverted = false ) {
   }
 }
 
-char* relayGetName( byte pin ) {
-  Relay* relay = relayFind(pin);
-  return ( (relay != NULL) ? relay->name : NULL );
-}
-
-bool relayState( byte pin ) {
-  Relay* relay = relayFind( pin );
-  return ( (relay != NULL) && relay->state );
-}
-
-bool relaySetState( byte pin, bool state ) {
-  Relay* relay = relayFind( pin );
-  if ( relay == NULL ) return false;
-  if ( relay->state != state ) {
-    relay->state = state;
-  }
-  return relay->state;
-}
-
-bool relaySwitch( byte pin ) {
-  return relaySetState( pin, !relayState(pin) );
-}
-
 //**************************************************************************
 //                         MQTT support functions
 //**************************************************************************
@@ -126,7 +124,7 @@ void relaysMQTTConnect() {
     for (int i = 0; i < relayCount; i++ ) if ( strlen(relays[i].name) > 0 ) {
       char s[64];
       mqttSubscribeTopic( "%s/SetName", relays[i].name );
-      mqttSubscribeTopic( "%s/State", relays[i].name );
+      mqttSubscribeTopic( "%s/SetState", relays[i].name );
       mqttSubscribeTopic( "%s/Switch", relays[i].name );
     }
   }
@@ -134,8 +132,8 @@ void relaysMQTTConnect() {
 
 bool relaysMQTTCallback( char* topic, byte* payload, unsigned int length ) {
   char s[63];
-  //Serial.print("Payload=");
-  //if( payload != NULL ) { Serial.println( (char*)payload ); } else { Serial.println( "empty" );}
+  //print("Payload=");
+  //if( payload != NULL ) { println( (char*)payload ); } else { println( "empty" );}
   for (int i = 0; i < relayCount; i++ ) if ( strlen(relays[i].name) > 0 ) {
       mqttTopic(s, "%s", relays[i].name );
       if ( strncmp(topic, s, strlen(s) ) == 0 ) {
@@ -145,17 +143,20 @@ bool relaysMQTTCallback( char* topic, byte* payload, unsigned int length ) {
           if( (payload != NULL) && (length > 1) && (length<32) ) {
             memset( relaysConfig[i].name, 0, sizeof(relaysConfig[i].name) );
             strncpy( relaysConfig[i].name, ((char*)payload), length );
-            Serial.print(F("Button name set to ")); Serial.println(relaysConfig[i].name);
+            print(F("Button name set to ")); println(relaysConfig[i].name);
             commsRestart();
           }
           return true;
-        } else if ( strcmp( topic, "State" ) == 0 ) {
+        } else if ( strcmp( topic, "SetState" ) == 0 ) {
           if( (payload != NULL) && (length == 1) ) {
-            relaySetState( relays[i].pin,  (*payload == '1') || (*payload == 1) );
+            bool onOff = (*payload == '1') || (*payload == 1);
+            print(F("MQTT: \"")); print(relaysConfig[i].name); print(F("\" set to "));println(onOff);
+            relaySetState( relays[i].pin, onOff );
           }
           return true;
         } else if ( strcmp( topic, "Switch" ) == 0 ) {
           relaySwitch(relays[i].pin);
+          print(F("MQTT: \"")); print(relaysConfig[i].name); print(F("\" switched to ("));print(relayState(relays[i].pin)); println(F(")"));
           return true;
         }
       }

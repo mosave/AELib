@@ -78,13 +78,13 @@ void pirLoop( PIR* pir ) {
   
   
 #ifdef Debug
-  Serial.print( (strlen(pir->name)>0) ? pir->name : "PIR" );
-  Serial.print(F(" #")); Serial.print(pir->pin); 
-  Serial.print(F(": t=")); Serial.print(pir->timeout);
-  Serial.print(F(", e=")); Serial.print( pir->enabled ? 1 : 0);
-  Serial.print(F(", a=")); Serial.print( pir->active ? 1 : 0);
-  Serial.print(F(", A=")); Serial.print( v );
-  Serial.println();
+  print( (strlen(pir->name)>0) ? pir->name : "PIR" );
+  print(F(" #")); print(pir->pin); 
+  print(F(": t=")); print(pir->timeout);
+  print(F(", e=")); print( pir->enabled ? 1 : 0);
+  print(F(", a=")); print( pir->active ? 1 : 0);
+  print(F(", A=")); print( v );
+  println();
 #endif
 }
 
@@ -156,8 +156,8 @@ bool pirsCallback( PIR* pir, char* topic, byte* payload, unsigned int length ) {
 
 bool pirsMQTTCallback( char* topic, byte* payload, unsigned int length ) {
   bool result = false;
-//  Serial.print("Payload="); 
-//  if( payload != NULL ) { Serial.println( (char*)payload ); } else { Serial.println( "empty" );}
+//  print("Payload="); 
+//  if( payload != NULL ) { println( (char*)payload ); } else { println( "empty" );}
   for(int i=0; i<pirCount; i++ ) {
     if( pirsCallback( &pirs[i], topic, payload, length ) ) result = true;
   }
