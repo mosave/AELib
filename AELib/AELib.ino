@@ -16,11 +16,11 @@
 
 
 void mqttConnect() {
-  println("Subscribing other topics");
+  aePrintln("Subscribing other topics");
 }
 
 bool mqttCallback(char* topic, byte* payload, unsigned int length) {
-    printf("mqttCallback(\"%s\", %u, %u )\r\n", topic, payload, length);
+    aePrintf("mqttCallback(\"%s\", %u, %u )\r\n", topic, payload, length);
     return false;
 }
 
@@ -28,7 +28,7 @@ void setup() {
   ledInit( On );
   Serial.begin(115200);
   delay(500); 
-  println();  println("Initializing");
+  aePrintln();  aePrintln("Initializing");
 
   storageInit();
   commsInit();

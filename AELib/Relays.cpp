@@ -48,16 +48,16 @@ RelayConfig relaysConfig[RelaysSize];
 
 #ifdef Debug
 void relayShowStatus( Relay* relay ) {
-  print( (strlen(relay->name) > 0) ? relay->name : "Relay" );
-  print(F(" #")); print(relay->pin); print(": ");
-  print( relay->state ? "ON" : "Off" );
-  print( ", reported " ); print( relay->reportedState );
-  //  if( btn->wasPressed ) print(F("wasPressed "));
-  //  if( btn->wasShortPressed ) print(F("wasShortPressed "));
-  //  if( btn->wasLongPressed ) print(F("wasLongPressed "));
-  //  if( btn->wasVeryLongPressed ) print(F("wasVeryLongPressed "));
-  //  if( btn->wasReleased ) print(F("wasReleased "));
-  println();
+  aePrint( (strlen(relay->name) > 0) ? relay->name : "Relay" );
+  aePrint(F(" #")); aePrint(relay->pin); aePrint(": ");
+  aePrint( relay->state ? "ON" : "Off" );
+  aePrint( ", reported " ); aePrint( relay->reportedState );
+  //  if( btn->wasPressed ) aePrint(F("wasPressed "));
+  //  if( btn->wasShortPressed ) aePrint(F("wasShortPressed "));
+  //  if( btn->wasLongPressed ) aePrint(F("wasLongPressed "));
+  //  if( btn->wasVeryLongPressed ) aePrint(F("wasVeryLongPressed "));
+  //  if( btn->wasReleased ) aePrint(F("wasReleased "));
+  aePrintln();
 }
 #endif
 
@@ -132,8 +132,8 @@ void relaysMQTTConnect() {
 
 bool relaysMQTTCallback( char* topic, byte* payload, unsigned int length ) {
   char s[63];
-  //print("Payload=");
-  //if( payload != NULL ) { println( (char*)payload ); } else { println( "empty" );}
+  //aePrint("Payload=");
+  //if( payload != NULL ) { aePrintln( (char*)payload ); } else { aePrintln( "empty" );}
   for (int i = 0; i < relayCount; i++ ) if ( strlen(relays[i].name) > 0 ) {
       mqttTopic(s, "%s", relays[i].name );
       if ( strncmp(topic, s, strlen(s) ) == 0 ) {
@@ -143,20 +143,20 @@ bool relaysMQTTCallback( char* topic, byte* payload, unsigned int length ) {
           if( (payload != NULL) && (length > 1) && (length<32) ) {
             memset( relaysConfig[i].name, 0, sizeof(relaysConfig[i].name) );
             strncpy( relaysConfig[i].name, ((char*)payload), length );
-            print(F("Button name set to ")); println(relaysConfig[i].name);
+            aePrint(F("Button name set to ")); aePrintln(relaysConfig[i].name);
             commsRestart();
           }
           return true;
         } else if ( strcmp( topic, "SetState" ) == 0 ) {
           if( (payload != NULL) && (length == 1) ) {
             bool onOff = (*payload == '1') || (*payload == 1);
-            print(F("MQTT: \"")); print(relaysConfig[i].name); print(F("\" set to "));println(onOff);
+            aePrint(F("MQTT: \"")); aePrint(relaysConfig[i].name); aePrint(F("\" set to "));aePrintln(onOff);
             relaySetState( relays[i].pin, onOff );
           }
           return true;
         } else if ( strcmp( topic, "Switch" ) == 0 ) {
           relaySwitch(relays[i].pin);
-          print(F("MQTT: \"")); print(relaysConfig[i].name); print(F("\" switched to ("));print(relayState(relays[i].pin)); println(F(")"));
+          aePrint(F("MQTT: \"")); aePrint(relaysConfig[i].name); aePrint(F("\" switched to ("));aePrint(relayState(relays[i].pin)); aePrintln(F(")"));
           return true;
         }
       }

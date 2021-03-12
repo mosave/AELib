@@ -16,8 +16,8 @@
 // "%s" will be replaced with device' MAC address
 //#define WIFI_HostName "NightLight"
 
-#define MQTT_Address "MQTT Broker address"
-#define MQTT_Port 1883
+//#define MQTT_Address "MQTT Broker address"
+//#define MQTT_Port 1883
 
 #ifndef WIFI_SSID
     #include "Config.AE.h"
@@ -41,15 +41,14 @@
 //#define DHT_Pin 13
 
 // Define this to allow serial port output
-#define print(...) Serial.print( __VA_ARGS__ )
-#define printf(...) Serial.printf( __VA_ARGS__ )
-#define println(...) Serial.println( __VA_ARGS__ )
+#define aePrintf( ... ) Serial.printf( __VA_ARGS__ )
+#define aePrint( ... ) Serial.print( __VA_ARGS__ )
+#define aePrintln( ... ) Serial.println( __VA_ARGS__ )
 
-// or disable serial port output...
-//#define print(...)
-//#define printf(...)
-//#define println(...)
-
+// or this to disable serial port output
+//#define aePrint( ... )
+//#define aePrintf( ... )
+//#define aePrintln( ... )
 
 
 #define LED_Pin 2

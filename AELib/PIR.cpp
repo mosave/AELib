@@ -78,13 +78,13 @@ void pirLoop( PIR* pir ) {
   
   
 #ifdef Debug
-  print( (strlen(pir->name)>0) ? pir->name : "PIR" );
-  print(F(" #")); print(pir->pin); 
-  print(F(": t=")); print(pir->timeout);
-  print(F(", e=")); print( pir->enabled ? 1 : 0);
-  print(F(", a=")); print( pir->active ? 1 : 0);
-  print(F(", A=")); print( v );
-  println();
+  aePrint( (strlen(pir->name)>0) ? pir->name : "PIR" );
+  aePrint(F(" #")); aePrint(pir->pin); 
+  aePrint(F(": t=")); aePrint(pir->timeout);
+  aePrint(F(", e=")); aePrint( pir->enabled ? 1 : 0);
+  aePrint(F(", a=")); aePrint( pir->active ? 1 : 0);
+  aePrint(F(", A=")); aePrint( v );
+  aePrintln();
 #endif
 }
 
@@ -156,8 +156,8 @@ bool pirsCallback( PIR* pir, char* topic, byte* payload, unsigned int length ) {
 
 bool pirsMQTTCallback( char* topic, byte* payload, unsigned int length ) {
   bool result = false;
-//  print("Payload="); 
-//  if( payload != NULL ) { println( (char*)payload ); } else { println( "empty" );}
+//  aePrint("Payload="); 
+//  if( payload != NULL ) { aePrintln( (char*)payload ); } else { aePrintln( "empty" );}
   for(int i=0; i<pirCount; i++ ) {
     if( pirsCallback( &pirs[i], topic, payload, length ) ) result = true;
   }
