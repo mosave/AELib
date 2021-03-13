@@ -7,7 +7,7 @@ static char* TOPIC_BaroTemperature PROGMEM = "Sensors/Temperature";
 static char* TOPIC_BaroPressure PROGMEM = "Sensors/Pressure";
 static char* TOPIC_BaroValid PROGMEM = "Sensors/BarometerValid";
 
-#define baroAccuracy (float)0.08
+#define baroAccuracy (float)0.6
 #define baroTempAccuracy (float)0.25
 #define baroValidityTimeout ((unsigned long)(30*1000))
 
@@ -39,7 +39,7 @@ void baroPublishStatus() {
   static float _baroPressure = -1000;
   delta = baroPressure - _baroPressure;  if (delta < 0) delta = -delta;
   if ( (delta > baroAccuracy) ) {
-    dtostrf( baroPressure, 0, 1, b );
+    dtostrf( baroPressure, 0, 0, b );
     if ( mqttPublish( TOPIC_BaroPressure, b, true ) ) _baroPressure = baroPressure;
   }
 
