@@ -13,6 +13,8 @@
 #define COMMS_ConnectTimeout ((unsigned long)(60 * 1000))
 // Number of connection attempts before resetting controller
 #define COMMS_ConnectAttempts 1000000
+// Time to wait between RSSI reports
+#define COMMS_RSSITimeout ((unsigned long)(10 * 1000))
 
 #define MQTT_ActivityTimeout ((unsigned long)(10 * 1000))
 #define MQTT_CbsSize 10
@@ -26,6 +28,7 @@ static char* TOPIC_Version PROGMEM = "Version";
 #endif
 static char* TOPIC_Online PROGMEM = "Online";
 static char* TOPIC_Address PROGMEM = "Address";
+static char* TOPIC_RSSI PROGMEM = "RSSI";
 static char* TOPIC_Activity PROGMEM = "Activity";
 static char* TOPIC_Reset PROGMEM = "Reset";
 static char* TOPIC_EnableOTA PROGMEM = "EnableOTA";
@@ -57,6 +60,7 @@ struct CommsConfig {
 unsigned long commsConnecting;
 unsigned long commsConnectAttempt = 0;
 unsigned long commsPaused;
+unsigned long commsRssiReported;
 
 unsigned long otaEnabled;
 bool otaShouldInit;
@@ -371,7 +375,14 @@ void commsLoop() {
       if( (a != activityReported) && mqttPublish( TOPIC_Activity, a?1:0, false ) ) {
         activityReported = a;
       }
-      
+
+      if( (unsigned long)(t - commsRssiReported) > COMMS_RSSITimeout ) {
+        char s[16];
+        sprintf(s, "%d",(int)WiFi.RSSI());
+        if( mqttPublish( TOPIC_RSSI, s, false ) ) commsRssiReported = t;
+      }
+
+
     } else {
       if( wasConnected ) {
         aePrintln(F("MQTT: Connection lost"));
