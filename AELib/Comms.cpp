@@ -371,7 +371,7 @@ void commsLoop() {
     if( mqttClient.loop() ) {
       wasConnected = true;
       static bool activityReported = false;
-      bool a = ((unsigned long)(t - mqttActivity) < MQTT_ActivityTimeout );
+      bool a = (mqttActivity != 0) && ((unsigned long)(t - mqttActivity) < MQTT_ActivityTimeout );
       if( (a != activityReported) && mqttPublish( TOPIC_Activity, a?1:0, false ) ) {
         activityReported = a;
       }
