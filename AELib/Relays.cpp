@@ -137,9 +137,9 @@ bool relaysMQTTCallback( char* topic, byte* payload, unsigned int length ) {
   for (int i = 0; i < relayCount; i++ ) if ( strlen(relays[i].name) > 0 ) {
       mqttTopic(s, "%s", relays[i].name );
       if ( strncmp(topic, s, strlen(s) ) == 0 ) {
-        topic += strlen(s);
-        if ( (*topic) = '/' ) topic++;
-        if ( strcmp( topic, "SetName" ) == 0 ) {
+        char* cmd = topic + strlen(s);
+        if ( (*cmd) == '/' ) cmd++;
+        if ( strcmp( cmd, "SetName" ) == 0 ) {
           if( (payload != NULL) && (length > 1) && (length<32) ) {
             memset( relaysConfig[i].name, 0, sizeof(relaysConfig[i].name) );
             strncpy( relaysConfig[i].name, ((char*)payload), length );
@@ -147,14 +147,14 @@ bool relaysMQTTCallback( char* topic, byte* payload, unsigned int length ) {
             commsRestart();
           }
           return true;
-        } else if ( strcmp( topic, "SetState" ) == 0 ) {
+        } else if ( strcmp( cmd, "SetState" ) == 0 ) {
           if( (payload != NULL) && (length == 1) ) {
             bool onOff = (*payload == '1') || (*payload == 1);
             aePrint(F("MQTT: \"")); aePrint(relaysConfig[i].name); aePrint(F("\" set to "));aePrintln(onOff);
             relaySetState( relays[i].pin, onOff );
           }
           return true;
-        } else if ( strcmp( topic, "Switch" ) == 0 ) {
+        } else if ( strcmp( cmd, "Switch" ) == 0 ) {
           relaySwitch(relays[i].pin);
           aePrint(F("MQTT: \"")); aePrint(relaysConfig[i].name); aePrint(F("\" switched to ("));aePrint(relayState(relays[i].pin)); aePrintln(F(")"));
           return true;
