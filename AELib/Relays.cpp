@@ -144,7 +144,7 @@ bool relaysMQTTCallback( char* topic, byte* payload, unsigned int length ) {
             memset( relaysConfig[i].name, 0, sizeof(relaysConfig[i].name) );
             strncpy( relaysConfig[i].name, ((char*)payload), length );
             aePrint(F("Button name set to ")); aePrintln(relaysConfig[i].name);
-            commsRestart();
+            commsClearTopicAndRestart( "%s/SetName", relays[i].name );
           }
           return true;
         } else if ( strcmp( cmd, "SetState" ) == 0 ) {

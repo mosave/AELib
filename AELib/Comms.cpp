@@ -67,6 +67,7 @@ bool otaShouldInit;
 unsigned int otaProgress;
 
 unsigned long mqttActivity;
+bool mqttDisableCallback = false;
 
 WiFiClient wifiClient;
 PubSubClient mqttClient( wifiClient );
@@ -260,18 +261,20 @@ void mqttRegisterCallbacks( MQTT_CALLBACK, MQTT_CONNECT ) {
   mqttCbsCount++;
 }
 
+
 // Internal proxy function to process "default" topics
 void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
+  if( mqttDisableCallback ) return;
 
   for(int i=0; i<mqttCbsCount; i++ ) {
     if( mqttCbs[i].callback != NULL ) {
       if( mqttCbs[i].callback( topic, payload, length) ) return;
     }
   }
-  
+
   if( mqttIsTopic( topic, TOPIC_Reset ) ) {
     aePrintln(F("MQTT: Resetting by request"));
-    commsRestart();
+    commsClearTopicAndRestart( TOPIC_Reset );
 
 #ifndef WIFI_HostName
   } else if( mqttIsTopic( topic, TOPIC_SetName ) ) {
@@ -283,7 +286,7 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
       aePrint(F("MQTT: Device name set to ")); aePrintln(commsConfig.hostName);
       
       mqttPublishRaw( topic, (long)0, true );
-      commsRestart();
+      commsClearTopicAndRestart( TOPIC_SetName );
     }
 #endif
 #ifndef MQTT_Root
@@ -296,10 +299,11 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
       aePrint(F("MQTT: Device root set to ")); aePrintln(commsConfig.mqttRoot);
       storageSave();
       mqttPublishRaw( topic, (long)0, true );
-      commsRestart();
+      commsClearTopicAndRestart( TOPIC_SetRoot );
     }
 #endif
   } else if( mqttIsTopic( topic, TOPIC_EnableOTA ) ) {
+    mqttPublish( TOPIC_EnableOTA, (char*)NULL, false );
     commsEnableOTA();
   }
   
@@ -352,7 +356,7 @@ void commsLoop() {
           });
           ArduinoOTA.onError([](ota_error_t error) {
             aePrintln(F("OTA: Error updating firmware. Restarting\r"));
-            commsRestart();
+            commsClearTopicAndRestart(TOPIC_EnableOTA);
           });      
           ArduinoOTA.begin();
           return;
@@ -362,7 +366,7 @@ void commsLoop() {
       } else {
         mqttPublish( TOPIC_Online, (long)0, true );
         aePrintln(F("OTA: Timeout waiting for update. Restarting"));
-        commsRestart();
+        commsClearTopicAndRestart(TOPIC_EnableOTA);
       }
     }
     static bool wasConnected = false;
@@ -458,6 +462,17 @@ void commsRestart() {
   mqttPublish( TOPIC_Online, (long)0, true );
   delay(1000);;
   ESP.restart();
+}
+void commsClearTopicAndRestart( char* topic) {
+   commsClearTopicAndRestart( topic, NULL, NULL);
+}
+void commsClearTopicAndRestart( char* topic, char* topicVar1 ) {
+   commsClearTopicAndRestart( topic, topicVar1, NULL);
+}
+void commsClearTopicAndRestart( char* topic, char* topicVar1, char* topicVar2 ) {
+  mqttDisableCallback = true;
+  mqttPublish( topic, topicVar1, topicVar2, (char*)NULL, false );
+  commsRestart();
 }
 
 
