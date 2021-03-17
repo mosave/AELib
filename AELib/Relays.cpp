@@ -143,7 +143,7 @@ bool relaysMQTTCallback( char* topic, byte* payload, unsigned int length ) {
           if( (payload != NULL) && (length > 1) && (length<32) ) {
             memset( relaysConfig[i].name, 0, sizeof(relaysConfig[i].name) );
             strncpy( relaysConfig[i].name, ((char*)payload), length );
-            aePrint(F("Button name set to ")); aePrintln(relaysConfig[i].name);
+            aePrint(F("MQTT: Button name set to ")); aePrintln(relaysConfig[i].name);
             commsClearTopicAndRestart( "%s/SetName", relays[i].name );
           }
           return true;
