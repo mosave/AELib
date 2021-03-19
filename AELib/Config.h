@@ -11,9 +11,9 @@
 //#define WIFI_SSID "SSID"
 //#define WIFI_Password  "WiFi password"
 
-// Device host name and MQTT ClientId, default is "ESP_%s" if not defined
-// Defining host name disables SetName MQTT command
-// "%s" will be replaced with device' MAC address
+// Device host name and MQTT ClientId, default is "ESP_%s"
+// "%s" is to be replaced with device' MAC address
+// Disables SetName MQTT command
 //#define WIFI_HostName "NightLight"
 
 //#define MQTT_Address "MQTT Broker address"

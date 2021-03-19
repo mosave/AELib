@@ -13,8 +13,6 @@
 #define COMMS_ConnectTimeout ((unsigned long)(60 * 1000))
 // Number of connection attempts before resetting controller
 #define COMMS_ConnectAttempts 1000000
-// Time to wait between RSSI reports
-#define COMMS_RSSITimeout ((unsigned long)(10 * 1000))
 
 #define MQTT_ActivityTimeout ((unsigned long)(10 * 1000))
 #define MQTT_CbsSize 10
@@ -28,7 +26,6 @@ static char* TOPIC_Version PROGMEM = "Version";
 #endif
 static char* TOPIC_Online PROGMEM = "Online";
 static char* TOPIC_Address PROGMEM = "Address";
-static char* TOPIC_RSSI PROGMEM = "RSSI";
 static char* TOPIC_Activity PROGMEM = "Activity";
 static char* TOPIC_Reset PROGMEM = "Reset";
 static char* TOPIC_EnableOTA PROGMEM = "EnableOTA";
@@ -60,14 +57,12 @@ struct CommsConfig {
 unsigned long commsConnecting;
 unsigned long commsConnectAttempt = 0;
 unsigned long commsPaused;
-unsigned long commsRssiReported;
 
 unsigned long otaEnabled;
 bool otaShouldInit;
 unsigned int otaProgress;
 
 unsigned long mqttActivity;
-bool mqttDisableCallback = false;
 
 WiFiClient wifiClient;
 PubSubClient mqttClient( wifiClient );
@@ -261,20 +256,18 @@ void mqttRegisterCallbacks( MQTT_CALLBACK, MQTT_CONNECT ) {
   mqttCbsCount++;
 }
 
-
 // Internal proxy function to process "default" topics
 void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
-  if( mqttDisableCallback ) return;
 
   for(int i=0; i<mqttCbsCount; i++ ) {
     if( mqttCbs[i].callback != NULL ) {
       if( mqttCbs[i].callback( topic, payload, length) ) return;
     }
   }
-
+  
   if( mqttIsTopic( topic, TOPIC_Reset ) ) {
     aePrintln(F("MQTT: Resetting by request"));
-    commsClearTopicAndRestart( TOPIC_Reset );
+    commsRestart();
 
 #ifndef WIFI_HostName
   } else if( mqttIsTopic( topic, TOPIC_SetName ) ) {
@@ -286,7 +279,7 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
       aePrint(F("MQTT: Device name set to ")); aePrintln(commsConfig.hostName);
       
       mqttPublishRaw( topic, (long)0, true );
-      commsClearTopicAndRestart( TOPIC_SetName );
+      commsRestart();
     }
 #endif
 #ifndef MQTT_Root
@@ -299,11 +292,10 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
       aePrint(F("MQTT: Device root set to ")); aePrintln(commsConfig.mqttRoot);
       storageSave();
       mqttPublishRaw( topic, (long)0, true );
-      commsClearTopicAndRestart( TOPIC_SetRoot );
+      commsRestart();
     }
 #endif
   } else if( mqttIsTopic( topic, TOPIC_EnableOTA ) ) {
-    mqttPublish( TOPIC_EnableOTA, (char*)NULL, false );
     commsEnableOTA();
   }
   
@@ -356,7 +348,7 @@ void commsLoop() {
           });
           ArduinoOTA.onError([](ota_error_t error) {
             aePrintln(F("OTA: Error updating firmware. Restarting\r"));
-            commsClearTopicAndRestart(TOPIC_EnableOTA);
+            commsRestart();
           });      
           ArduinoOTA.begin();
           return;
@@ -366,7 +358,7 @@ void commsLoop() {
       } else {
         mqttPublish( TOPIC_Online, (long)0, true );
         aePrintln(F("OTA: Timeout waiting for update. Restarting"));
-        commsClearTopicAndRestart(TOPIC_EnableOTA);
+        commsRestart();
       }
     }
     static bool wasConnected = false;
@@ -375,18 +367,11 @@ void commsLoop() {
     if( mqttClient.loop() ) {
       wasConnected = true;
       static bool activityReported = false;
-      bool a = (mqttActivity != 0) && ((unsigned long)(t - mqttActivity) < MQTT_ActivityTimeout );
+      bool a = ((unsigned long)(t - mqttActivity) < MQTT_ActivityTimeout );
       if( (a != activityReported) && mqttPublish( TOPIC_Activity, a?1:0, false ) ) {
         activityReported = a;
       }
-
-      if( (unsigned long)(t - commsRssiReported) > COMMS_RSSITimeout ) {
-        char s[16];
-        sprintf(s, "%d",(int)WiFi.RSSI());
-        if( mqttPublish( TOPIC_RSSI, s, false ) ) commsRssiReported = t;
-      }
-
-
+      
     } else {
       if( wasConnected ) {
         aePrintln(F("MQTT: Connection lost"));
@@ -463,17 +448,6 @@ void commsRestart() {
   delay(1000);;
   ESP.restart();
 }
-void commsClearTopicAndRestart( char* topic) {
-   commsClearTopicAndRestart( topic, NULL, NULL);
-}
-void commsClearTopicAndRestart( char* topic, char* topicVar1 ) {
-   commsClearTopicAndRestart( topic, topicVar1, NULL);
-}
-void commsClearTopicAndRestart( char* topic, char* topicVar1, char* topicVar2 ) {
-  mqttDisableCallback = true;
-  mqttPublish( topic, topicVar1, topicVar2, (char*)NULL, false );
-  commsRestart();
-}
 
 
 void commsInit() {
@@ -484,7 +458,11 @@ void commsInit() {
   storageRegisterBlock( COMMS_StorageId, &commsConfig, sizeof(commsConfig) );
 
 #ifdef WIFI_HostName
-  strcpy( commsConfig.hostName, WIFI_HostName );
+  uint8_t macAddr[6];
+  char macS[16];
+  sprintf( macS, "%02X%02X%02X%02X%02X%02X", macAddr[0], macAddr[1], macAddr[2],macAddr[3], macAddr[4], macAddr[5]);
+  WiFi.macAddress(macAddr);
+  sprintf( commsConfig.hostName, WIFI_HostName, macS);
 #endif  
 
 #ifdef MQTT_Root
