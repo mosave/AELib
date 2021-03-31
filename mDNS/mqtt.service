@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<service-group>
+    <name>MQTT Broker on House</name>
+    <service>
+        <type>_mqtt._tcp</type>
+        <port>1883</port>
+        <!--host-name>mosquitto</host-name-->
+    </service>
+</service-group>
