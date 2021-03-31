@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <service-group>
-    <name>MQTT Broker on House</name>
+    <name>MQTT Broker</name>
     <service>
         <type>_mqtt._tcp</type>
         <port>1883</port>
