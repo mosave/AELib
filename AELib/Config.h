@@ -19,6 +19,11 @@
 //#define MQTT_Address "MQTT Broker address"
 //#define MQTT_Port 1883
 
+// If NO MQTT address or port defined then client will search for 
+// mDNS advertisement with service type="mqtt" and protocol="tcp" 
+
+
+
 #ifndef WIFI_SSID
     #include "Config.AE.h"
 #endif
