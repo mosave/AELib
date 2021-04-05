@@ -5,6 +5,10 @@
 #include "DHTesp.h" // beegee-tokyo DHTesp: https://github.com/beegee-tokyo/DHTesp
 #include "TAH.h"
 
+#ifndef DHT_Pin
+  #define DHT_Pin 0
+#endif
+
 static char* TOPIC_TAHValid PROGMEM = "Sensors/TAHValid";
 static char* TOPIC_Temperature PROGMEM = "Sensors/Temperature";
 static char* TOPIC_Humidity PROGMEM = "Sensors/Humidity";

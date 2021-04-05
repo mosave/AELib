@@ -150,7 +150,7 @@
  * **Sensors/LightMeter**: текущий уровень освещенности (Retained)
  * **Sensors/LightMeterValid**: Показания сенсора актуальны и действительны (Retained)
 
-### TAH: Поддержка сенсора DHT22 и аналогичных
+### TAH: Поддержка датчика влажности и температуры DHT22 и аналогичных
 
 Используется библиотека [**DHTesp** by beegee-tokyo](https://github.com/beegee-tokyo/DHTesp)
 
@@ -161,6 +161,13 @@
  * **Sensors/Humidity**: Текущая влажность (Retained)
  * **Sensors/HeatIndex**: "Ощущаемая температура" (Retained)
  * **Sensors/TAHValid**: Показания сенсоры актуальны и действительны (Retained)
+
+### TAH_HTU21D: Поддержка датчика влажности и температуры GY-213 и аналогичных на базе сенсора HTU21D
+
+Используется библиотека [**SparkFun** HTU21D library](https://github.com/sparkfun/SparkFun_HTU21D_Breakout_Arduino_Library)
+
+Модуль подключается через i2c, поэтому перед его инициализацией небоходим вызов Wire.begin() 
+MQTT интерфейс полностью совпадает с модулем TAH.
 
 ### PIR: Поддержка нескольких детекторов движения
 
