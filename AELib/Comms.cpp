@@ -28,7 +28,7 @@ mqttMdnsRecord mqttMdns[mqttMdnsSize];
 // Number of connection attempts before resetting controller
 #define COMMS_ConnectAttempts 1000000
 // Time to wait between RSSI reports
-#define COMMS_RSSITimeout ((unsigned long)(10 * 1000))
+#define COMMS_RSSITimeout ((unsigned long)(60 * 1000))
 
 #define MQTT_ActivityTimeout ((unsigned long)(10 * 1000))
 #define MQTT_CbsSize 10
@@ -74,7 +74,6 @@ struct CommsConfig {
 unsigned long commsConnecting;
 unsigned long commsConnectAttempt = 0;
 unsigned long commsPaused;
-unsigned long commsRssiReported;
 unsigned long commsPauseTimeout = COMMS_ConnectTimeout;
 
 int mqttMdnsIndex = 0;
@@ -372,7 +371,7 @@ void commsLoop() {
             aePrintln(F("\nOTA: Firmware updated. Restarting"));
           });
           ArduinoOTA.onError([](ota_error_t error) {
-            aePrintln(F("OTA: Error updating firmware. Restarting\r"));
+            aePrint(F("OTA: Error #")); aePrint( error ); aePrintln(F(" updating firmware. Restarting"));
             commsRestart();
           });      
           ArduinoOTA.begin();
@@ -397,10 +396,21 @@ void commsLoop() {
         activityReported = a;
       }
 
-      if( (unsigned long)(t - commsRssiReported) > COMMS_RSSITimeout ) {
-        char s[16];
-        sprintf(s, "%d",(int)WiFi.RSSI());
-        if( mqttPublish( TOPIC_RSSI, s, false ) ) commsRssiReported = t;
+      static unsigned long _rssiReported = 0;
+
+      if( (unsigned long)(t - _rssiReported) > ((unsigned long)5000) ) {
+        static int32_t _rssi = 9999;
+        int32_t rssi = WiFi.RSSI();
+        int d = ((int)(rssi-_rssi));
+        if( d<0 ) d = -d;
+        if( (((unsigned long)(t - _rssiReported) > COMMS_RSSITimeout) && (d>5)) || (d>20) ) {
+          char s[16];
+          sprintf(s, "%d",rssi);
+          if( mqttPublish( TOPIC_RSSI, s, false ) ) {
+            _rssiReported = t;
+            _rssi = rssi;
+          }
+        }
       }
 
 
@@ -509,7 +519,7 @@ void commsEnableOTA() {
     otaShouldInit = true;
   }
   otaEnabled = millis();
-  Serial.end();
+  //Serial.end();
 }
 
 void commsRestart() {
