@@ -32,6 +32,7 @@
 
 ### Другие примеры использования
  * [MQTT интерфейс электросчетчика Eastron SDM630](https://github.com/mosave/SDM630Gateway)
+ * [Замена модуля Broadlink в термостатах Beok на MQTT контроллер на базе ESP8266](https://github.com/mosave/Beok2MQTT)
 
 ## Модули и файлы фреймовка
 
