@@ -4,7 +4,7 @@
 #include "LED.h"
 
 #define PatternSize 6
-LedMode _ledMode = Off;
+LedMode _ledMode = LedMode::Off;
 bool ledOn = false;
 unsigned int triggeredOn;
 unsigned int updateTimeout;
@@ -27,30 +27,30 @@ void ledMode(LedMode newMode) {
   _ledMode = newMode;
   triggeredOn = millis();
   patternP = 0;
-  if( _ledMode == On ) {
+  if( _ledMode == LedMode::On ) {
     ledOn = true;
     updateTimeout = (unsigned long)(-1);
     digitalWrite( LED_Pin, LOW );
-  } else if( _ledMode ==  BlinkFast ) {
+  } else if( _ledMode ==  LedMode::BlinkFast ) {
     blinkConfig( false, 190, 10 );
-  } else if( _ledMode ==  Blink) {
+  } else if( _ledMode ==  LedMode::Blink) {
     blinkConfig( false, 1950, 50 );
-  } else if( _ledMode ==  BlinkInverted) {
+  } else if( _ledMode ==  LedMode::BlinkInverted) {
     blinkConfig( true, 1900, 100 );
-  } else if( _ledMode ==  BlinkTwice) {
+  } else if( _ledMode ==  LedMode::BlinkTwice) {
     blinkConfig( false, 1300, 50, 100, 50 );
-  } else if( _ledMode ==  BlinkSlow ) {
+  } else if( _ledMode ==  LedMode::BlinkSlow ) {
     blinkConfig( false, 4700, 300 );
-  } else if( _ledMode ==  BlinkSlowInverted ) {
+  } else if( _ledMode ==  LedMode::BlinkSlowInverted ) {
     blinkConfig( true, 4800, 200 );
-  } else if( _ledMode ==  Standby) {
+  } else if( _ledMode ==  LedMode::Standby) {
     blinkConfig( false, 9950, 50 );
-  } else if( _ledMode ==  Glowing) {
+  } else if( _ledMode ==  LedMode::Glowing) {
     ledOn = true; updateTimeout = 50;
     patternP = 0; glowStep = -60;
     analogWrite( LED_Pin, patternP );
   } else {
-    _ledMode = Off;
+    _ledMode = LedMode::Off;
     ledOn = false;  updateTimeout = (unsigned long)(-1);
     digitalWrite( LED_Pin, HIGH );
   }
@@ -59,7 +59,7 @@ void ledMode(LedMode newMode) {
 
 LedMode ledModeNext() {
     LedMode lm = (LedMode)(((char)_ledMode)+1);
-    if( lm>On ) lm = Off;
+    if( lm>On ) lm = LedMode::Off;
     ledMode(lm);
     return _ledMode;
 }
@@ -72,11 +72,11 @@ void ledLoop() {
   if( (unsigned long)(t - updatedOn) > updateTimeout ) {
     bool switchOn = ledOn;
     updatedOn = t;
-    if( (LED_Pin<=0) || ( _ledMode == Off) ) {
+    if( (LED_Pin<=0) || ( _ledMode == LedMode::Off) ) {
       switchOn = false;
-    } else if ( _ledMode == On) {
+    } else if ( _ledMode == LedMode::On) {
       switchOn = true;
-    } else if ( _ledMode == Glowing) {
+    } else if ( _ledMode == LedMode::Glowing) {
       patternP += glowStep;
       if( patternP>=1000 ) {
         glowStep = -glowStep;
@@ -109,11 +109,11 @@ void ledInit( LedMode defaultMode) {
     pinMode(LED_Pin, OUTPUT);
     digitalWrite( LED_Pin, HIGH );
   }
-  _ledMode = Off;
+  _ledMode = LedMode::Off;
   ledMode( defaultMode );
   registerLoop(ledLoop);
 }
 
 void ledInit() {
-  ledInit( Off );
+  ledInit( LedMode::Off );
 }

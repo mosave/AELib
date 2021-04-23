@@ -85,6 +85,7 @@ unsigned int otaProgress;
 
 unsigned long mqttActivity;
 bool mqttDisableCallback = false;
+char mqttServerAddress[32]="";
 
 WiFiClient wifiClient;
 PubSubClient mqttClient( wifiClient );
@@ -178,6 +179,9 @@ void commsReconnect() {
 //**************************************************************************
 bool mqttConnected() {
   return mqttClient.connected();
+}
+char* mqttServer() {
+  return mqttServerAddress;
 }
 char* mqttTopic( char* buffer, char* TOPIC_Name ) {
   return mqttTopic( buffer, TOPIC_Name, NULL, NULL );
@@ -277,7 +281,6 @@ void mqttRegisterCallbacks( MQTT_CALLBACK, MQTT_CONNECT ) {
   mqttCbs[mqttCbsCount].connect = connect;
   mqttCbsCount++;
 }
-
 
 // Internal proxy function to process "default" topics
 void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
@@ -440,6 +443,7 @@ void commsLoop() {
         if( mqttMdnsCnt>0 ) {
           aePrintf("MQTT: Connecting broker #%d %s:%d\r\n", mqttMdnsIndex, mqttMdns[mqttMdnsIndex].address, mqttMdns[mqttMdnsIndex].port );
           mqttClient.setServer( mqttMdns[mqttMdnsIndex].address, mqttMdns[mqttMdnsIndex].port );
+          strcpy( mqttServerAddress, mqttMdns[mqttMdnsIndex].address );
           mqttMdnsIndex++;
           if( mqttMdnsIndex>=mqttMdnsCnt ) {
             mqttMdnsCnt = 0;
@@ -450,6 +454,7 @@ void commsLoop() {
         }
 #else
         mqttClient.setServer( MQTT_Address, MQTT_Port);
+        strcpy( mqttServerAddress, MQTT_Address );
 #endif
 
         mqttClient.setCallback( mqttCallbackProxy );
