@@ -9,7 +9,7 @@
 #define ButtonsSize 8
 #define ButtonNameSize 16
 // Anticlush filtering timeout, ms
-#define ClashTimeout ((unsigned long)100)
+#define ClashTimeout ((unsigned long)75)
 #define LongPressTimeout ((unsigned long)1000)
 #define VeryLongPressTimeout ((unsigned long)10000)
 
@@ -76,7 +76,7 @@ void btnLoop( Btn* btn, bool pressed ) {
     if( (state != btn->reportedState) && mqttPublish( TOPIC_State, btn->name, state, false  ) ) btn->reportedState = state;
   }
 
-  if( pressed != btn-> pressed ) {
+  if( pressed != btn->pressed ) {
     btn->pressed = pressed;
     if( pressed ) { // button pressed
       if( (unsigned long)(t - btn->lastPressedOn) < (unsigned long)1000 ) {
@@ -106,6 +106,12 @@ void btnLoop( Btn* btn, bool pressed ) {
     } else { // button released
       btn->wasPressed = false;
       btn->wasReleased = true;
+#ifdef ButtonsEasyMode
+      if( ((unsigned long)(t - btn->triggeredOn) < LongPressTimeout) && (!btn->wasLongPressed) ) {
+        btn->wasShortPressed = true;
+        if( strlen(btn->name)>0 ) mqttPublish( TOPIC_ShortPressed, btn->name, "", false );
+      }
+#else
       if( (unsigned long)(t - btn->triggeredOn) < LongPressTimeout ) {
         btn->wasShortPressed = true;
         if( strlen(btn->name)>0 ) mqttPublish( TOPIC_ShortPressed, btn->name, "", false );
@@ -116,13 +122,13 @@ void btnLoop( Btn* btn, bool pressed ) {
         btn->wasVeryLongPressed = true;
         if( strlen(btn->name)>0 ) mqttPublish( TOPIC_VeryLongPressed, btn->name, "", false  );
       }
+#endif        
     }
     btn->triggeredOn = t;
 #ifdef Debug
     btnShowStatus(btn);
 #endif        
   }
-
 }
 
 void btnRegister( byte btnPin, char* mqttName, bool inverted, bool pullUp ) {
@@ -237,7 +243,7 @@ bool btnLongPressed( byte btnPin, byte btnPin2 ) {
   buttons[index2].wasLongPressed = false; 
   return true;
 }
-
+#ifndef ButtonsEasyMode
 bool btnVeryLongPressed( byte btnPin ) {
   short int index = btnIndex(btnPin);
   if( (index<0) || !buttons[index].wasVeryLongPressed ) return false;
@@ -256,6 +262,7 @@ bool btnVeryLongPressed( byte btnPin, byte btnPin2 ) {
   buttons[index2].wasVeryLongPressed = false; 
   return true;
 }
+#endif
 
 void btnsLoop() {
   static byte _states = 0b1111111;
@@ -282,8 +289,17 @@ void btnsLoop() {
         btnLoop( &buttons[i], ((states & (1<<i)) != 0) );
       }
     }
+#ifdef ButtonsEasyMode
+    if( (unsigned long)(t - changedOn) > ClashTimeout ) {
+      for(int i=0; i<btnCount; i++ ) {
+        if( buttons[i].pressed && (!buttons[i].wasLongPressed) && (unsigned long)(t - buttons[i].triggeredOn) >= LongPressTimeout ) {
+          buttons[i].wasLongPressed = true;
+          if( strlen(buttons[i].name)>0 ) mqttPublish( TOPIC_LongPressed, buttons[i].name, "", false  );
+        }
+      }
+    }
+#endif
   }
-  
 }
 
 void btnInit() {

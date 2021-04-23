@@ -38,6 +38,12 @@
 // * "%s"
 //#define MQTT_Root "test/%s/"
 
+
+// If ButtonsEasyMode is defined then
+// * btnVeryLongPressed() will not be available
+// * btnLongPressed() will trigger BEFORE button release
+//#define ButtonsEasyMode
+
 // Define if I2S connected devices used e.g. Barometer
 //#define I2C_SDA 12
 //#define I2C_SCL 13
