@@ -45,6 +45,7 @@ static char* TOPIC_Address PROGMEM = "Address";
 static char* TOPIC_RSSI PROGMEM = "RSSI";
 static char* TOPIC_Activity PROGMEM = "Activity";
 static char* TOPIC_Reset PROGMEM = "Reset";
+static char* TOPIC_FactoryReset PROGMEM = "FactoryReset";
 static char* TOPIC_EnableOTA PROGMEM = "EnableOTA";
 #ifndef WIFI_HostName
 static char* TOPIC_SetName PROGMEM = "SetName";
@@ -295,6 +296,10 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
   if( mqttIsTopic( topic, TOPIC_Reset ) ) {
     aePrintln(F("MQTT: Resetting by request"));
     commsClearTopicAndRestart( TOPIC_Reset );
+  } else if( mqttIsTopic( topic, TOPIC_FactoryReset ) ) {
+    aePrintln(F("MQTT: Resetting settings"));
+    storageReset();
+    commsClearTopicAndRestart( TOPIC_FactoryReset );
 
 #ifndef WIFI_HostName
   } else if( mqttIsTopic( topic, TOPIC_SetName ) ) {
@@ -469,6 +474,7 @@ void commsLoop() {
           aePrintln(F("MQTT: Connected"));
           // Subscribe
           mqttSubscribeTopic( TOPIC_Reset );
+          mqttSubscribeTopic( TOPIC_FactoryReset );
           mqttSubscribeTopic( TOPIC_EnableOTA );
 #ifndef WIFI_HostName
           mqttSubscribeTopic( TOPIC_SetName );
@@ -553,7 +559,6 @@ void commsInit() {
   commsPaused = 0;
   mqttActivity = 0;
   storageRegisterBlock( COMMS_StorageId, &commsConfig, sizeof(commsConfig) );
-
 #ifdef WIFI_HostName
   uint8_t macAddr[6];
   char macS[16];
