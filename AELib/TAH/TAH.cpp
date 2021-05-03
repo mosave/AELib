@@ -12,6 +12,7 @@
 static char* TOPIC_TAHValid PROGMEM = "Sensors/TAHValid";
 static char* TOPIC_Temperature PROGMEM = "Sensors/Temperature";
 static char* TOPIC_Humidity PROGMEM = "Sensors/Humidity";
+static char* TOPIC_AbsHumidity PROGMEM = "Sensors/AbsHumidity";
 static char* TOPIC_HeatIndex PROGMEM = "Sensors/HeatIndex";
 
 #define DetectionTimeout ((unsigned long)(15*1000))
@@ -26,7 +27,6 @@ float tahTemperature;
 bool tahSensorFound;
 unsigned long tahUpdatedOn = 0;
 unsigned long tahDetection = 0;
-
 
 void publishStatus() {
   if( !mqttConnected() ) return;
@@ -59,6 +59,9 @@ void publishStatus() {
   if( hindex ) {
     dtostrf( dht.computeHeatIndex(tahTemperature, tahHumidity, false), 0, 1, b );
     mqttPublish( TOPIC_HeatIndex, b, true );
+    float absHumidity = 6.112*pow(2.71828,(17.67*tahTemperature)/(tahTemperature+243.5))*tahHumidity*2.1674/(275.15+tahTemperature);
+    dtostrf( ((float)((int)(absHumidity*2)))/2.0, 0, 1, b );
+    mqttPublish( TOPIC_AbsHumidity, b, true );
   }
 }
 

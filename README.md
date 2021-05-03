@@ -168,8 +168,9 @@
 В конфигурации необходимо определить номер пина, к которому подключен сенсор (константа DHT_Pin)
 
 Публикуемые MQTT топики:
- * **Sensors/Temperature**: Текущая температура (Retained)
- * **Sensors/Humidity**: Текущая влажность (Retained)
+ * **Sensors/Temperature**: Температура (Retained)
+ * **Sensors/Humidity**: Влажность воздуха (Retained)
+ * **Sensors/AbsHumidity**: Абсолютная влажность, г/м3 (Retained)
  * **Sensors/HeatIndex**: "Ощущаемая температура" (Retained)
  * **Sensors/TAHValid**: Показания сенсоры актуальны и действительны (Retained)
 
