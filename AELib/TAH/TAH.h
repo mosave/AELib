@@ -4,4 +4,10 @@
 bool tahAvailable();
 void tahInit();
 
+float tahGetTemperature();
+float tahGetHumidity();
+float tahGetHeatIndex();
+float tahGetAbsHumidity();
+
+
 #endif

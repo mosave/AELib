@@ -28,6 +28,22 @@ bool tahSensorFound;
 unsigned long tahUpdatedOn = 0;
 unsigned long tahDetection = 0;
 
+float tahGetTemperature() {
+  return tahTemperature;
+}
+float tahGetHumidity() {
+  return tahHumidity;
+}
+
+float tahGetHeatIndex() {
+  return dht.computeHeatIndex(tahTemperature, tahHumidity, false);
+}
+
+float tahGetAbsHumidity() {
+  return 6.112*pow(2.71828,(17.67*tahTemperature)/(tahTemperature+243.5))*tahHumidity*2.1674/(275.15+tahTemperature);
+}
+
+
 void publishStatus() {
   if( !mqttConnected() ) return;
   static int _valid = -1;
@@ -57,9 +73,9 @@ void publishStatus() {
   }
   
   if( hindex ) {
-    dtostrf( dht.computeHeatIndex(tahTemperature, tahHumidity, false), 0, 1, b );
+    dtostrf( tahGetHeatIndex(), 0, 1, b );
     mqttPublish( TOPIC_HeatIndex, b, true );
-    float absHumidity = 6.112*pow(2.71828,(17.67*tahTemperature)/(tahTemperature+243.5))*tahHumidity*2.1674/(275.15+tahTemperature);
+    float absHumidity = tahGetAbsHumidity();
     dtostrf( ((float)((int)(absHumidity*2)))/2.0, 0, 1, b );
     mqttPublish( TOPIC_AbsHumidity, b, true );
   }
