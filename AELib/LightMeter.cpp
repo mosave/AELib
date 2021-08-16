@@ -179,7 +179,7 @@ bool lmMqttCallback(char* topic, byte* payload, unsigned int length) {
         float v = ((int)(strtof(s,NULL) * 10.0)) / 10.0 ;
         
         if ( (errno==0) && (v>=0.1) && (v<1000) ) {
-          if( cmd=1 ) {
+          if( cmd==1 ) {
             lmConfig.sunriseLevel = v;
             mqttPublish(TOPIC_LMSetSunriseLevel,(char*)NULL, false);
           } else {
