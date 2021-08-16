@@ -23,6 +23,9 @@
 // mDNS advertisement with service type="mqtt" and protocol="tcp" 
 
 
+// Define this to autosynchronize time if NTP server is available.
+// Check "tz.h" for timezone constants
+#define TIMEZONE TZ_Europe_Moscow
 
 #ifndef WIFI_SSID
     #include "Config.AE.h"
@@ -63,10 +66,13 @@
 
 
 #define LED_Pin 2
+// Define this to invert LED power
+#define LED_Inverted
 
 
 //#define ShowLoopTimes
-#define LOOP std::function<void()>
+//#define LOOP std::function<void()>
+typedef void (*LOOP)();
 
 void registerLoop( LOOP loop );
 void Loop();

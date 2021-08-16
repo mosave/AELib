@@ -12,12 +12,20 @@ unsigned int pattern[6];
 int patternP;
 int glowStep;
 
+#ifdef LED_Inverted
+    #define LED_ON HIGH
+    #define LED_OFF LOW
+#else
+    #define LED_ON LOW
+    #define LED_OFF HIGH
+#endif
+
 LedMode ledMode() {
   return _ledMode;
 }
 void blinkConfig( bool initial, unsigned int p0, int p1, int p2=0, int p3=0, int p4=0, int p5=0 ) {
   ledOn = initial; updateTimeout = 10;
-  digitalWrite( LED_Pin, ledOn ? LOW : HIGH );
+  digitalWrite(LED_Pin, ledOn ? LED_ON : LED_OFF);
   pattern[0]=p0; pattern[1]=p1; pattern[2]=p2;
   pattern[3]=p3; pattern[4]=p4; pattern[5]=p5;
 }
@@ -30,7 +38,7 @@ void ledMode(LedMode newMode) {
   if( _ledMode == LedMode::On ) {
     ledOn = true;
     updateTimeout = (unsigned long)(-1);
-    digitalWrite( LED_Pin, LOW );
+    digitalWrite(LED_Pin, LED_ON);
   } else if( _ledMode ==  LedMode::BlinkFast ) {
     blinkConfig( false, 190, 10 );
   } else if( _ledMode ==  LedMode::Blink) {
@@ -45,14 +53,16 @@ void ledMode(LedMode newMode) {
     blinkConfig( true, 4800, 200 );
   } else if( _ledMode ==  LedMode::Standby) {
     blinkConfig( false, 9950, 50 );
+#ifdef ESP8266
   } else if( _ledMode ==  LedMode::Glowing) {
     ledOn = true; updateTimeout = 50;
     patternP = 0; glowStep = -60;
-    analogWrite( LED_Pin, patternP );
+    analogWrite(LED_Pin, patternP);
+#endif
   } else {
     _ledMode = LedMode::Off;
     ledOn = false;  updateTimeout = (unsigned long)(-1);
-    digitalWrite( LED_Pin, HIGH );
+    digitalWrite(LED_Pin, LED_OFF);
   }
 //  aePrintf("Mode %d: %lu / %lu\r\n", mode, timeoutOn, timeoutOff );
 }
@@ -76,6 +86,7 @@ void ledLoop() {
       switchOn = false;
     } else if ( _ledMode == LedMode::On) {
       switchOn = true;
+#ifdef ESP8266
     } else if ( _ledMode == LedMode::Glowing) {
       patternP += glowStep;
       if( patternP>=1000 ) {
@@ -86,6 +97,7 @@ void ledLoop() {
         patternP = 0;
       }
       analogWrite( LED_Pin, patternP );
+#endif
     } else {
       if( ((unsigned long)(t - triggeredOn) > (unsigned long)pattern[patternP] ) ) {
           switchOn = !ledOn;
@@ -95,7 +107,7 @@ void ledLoop() {
         triggeredOn = t;
         patternP++;
         if( (patternP>=PatternSize) || (pattern[patternP]==0) ) patternP=0;
-        digitalWrite( LED_Pin, ledOn ? LOW : HIGH );
+        digitalWrite(LED_Pin, ledOn ? LED_ON : LED_OFF);
       }
     }
   }
@@ -106,8 +118,8 @@ void ledLoop() {
 void ledInit( LedMode defaultMode) {
   triggeredOn = 0;
   if( LED_Pin>0 ) {
-    pinMode(LED_Pin, OUTPUT);
-    digitalWrite( LED_Pin, HIGH );
+      pinMode(LED_Pin, OUTPUT);
+      digitalWrite(LED_Pin, LED_OFF);
   }
   _ledMode = LedMode::Off;
   ledMode( defaultMode );

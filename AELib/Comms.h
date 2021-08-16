@@ -1,6 +1,10 @@
 #ifndef comms_h
 #define comms_h
 
+#ifndef std::function
+#include <functional>
+#endif
+
 #define MQTT_CALLBACK std::function<bool(char*, uint8_t*, unsigned int)> callback
 #define MQTT_CONNECT std::function<void()> connect
 
