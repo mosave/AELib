@@ -7,6 +7,7 @@
 static char* TOPIC_LMLevel PROGMEM = "Sensors/LightLevel";
 static char* TOPIC_LMValid PROGMEM = "Sensors/LightLevelValid";
 
+static char* TOPIC_LMFilteredLevel PROGMEM = "Sensors/LightLevelFiltered";
 static char* TOPIC_LMSunriseLevel  PROGMEM = "Sensors/SunriseLevel";
 static char* TOPIC_LMSetSunriseLevel  PROGMEM = "Sensors/SetSunriseLevel";
 static char* TOPIC_LMSunsetLevel  PROGMEM = "Sensors/SunsetLevel";
@@ -49,6 +50,7 @@ struct LmssDataPoint {
 BH1750 lightMeter;
 
 float lmLevel;
+float lmFilteredLevel;
 bool lmDetected;
 
 bool lmssEnabled;
@@ -115,10 +117,19 @@ void lmPublishStatus() {
         }
     }
     if( lmssEnabled ) {
+        static int _lmFilteredLevel = -1;
+        if( (lmFilteredLevel>0) && (lmFilteredLevel != _lmFilteredLevel) ) {
+            dtostrf(lmFilteredLevel, 0, 1, b);
+            if (mqttPublish(TOPIC_LMFilteredLevel, b, true)) {
+                _lmFilteredLevel = lmFilteredLevel;
+            }
+        }
+      
 #ifdef TIMEZONE      
         time_t currentTime = time(nullptr);
         if( currentTime > 10000 ) {
 #endif
+          
             static int _dayPhase = -1;
             if (lmssDayPhase != _dayPhase) {
                 if (lmssDayPhase == LMSS_DAY) {
@@ -235,21 +246,24 @@ bool lmssApproximate(double* a, double* b, bool filter) {
 void lmssUpdateStatus() {
     double a, b, sL2Filter, sL2Max;
 
-    if (lmssApproximate(&a, &b, false) /*&& lmssApproximate(&a, &b, true)*/ ) {
-        // b = current light level approximation
-        // b0 = "(TIMEFRAME-1) minutes ago" light level approximation
-        float b0 = b + a * (LMSS_TIMEFRAME-1)*60.0;
+    if (lmssApproximate(&a, &b, false) && lmssApproximate(&a, &b, true) ) {
+      // b = current light level approximation
+      lmFilteredLevel = b;
+      // b0 = "(TIMEFRAME-1) minutes ago" light level approximation
+      double b0 = b + a * ((double)(LMSS_TIMEFRAME-1)*60.0);
+      if( b0<=0 ) b0 = 0.1;
+      if( b<=0 ) b = 0.1;
 //        char s[31];
 //        dtostrf(b0, 0, 1, s);
 //        mqttPublish("Sensors/b0", s, false);
 //        dtostrf(b, 0, 1, s);
 //        mqttPublish("Sensors/b", s, false);
         
-        if ( (lmssDayPhase != LMSS_DAY) && (b0 < lmConfig.sunriseLevel) && (b > lmConfig.sunriseLevel) ) {
-            lmssDayPhase = LMSS_DAY;
-        } else if ( (lmssDayPhase != LMSS_NIGHT) && (b0 > lmConfig.sunsetLevel) && (b < lmConfig.sunsetLevel) ) {
-            lmssDayPhase = LMSS_NIGHT;
-        }
+      if ( (lmssDayPhase != LMSS_DAY) && (b0 < lmConfig.sunriseLevel) && (b > lmConfig.sunriseLevel) ) {
+          lmssDayPhase = LMSS_DAY;
+      } else if ( (lmssDayPhase != LMSS_NIGHT) && (b0 > lmConfig.sunsetLevel) && (b < lmConfig.sunsetLevel) ) {
+          lmssDayPhase = LMSS_NIGHT;
+      }
     }
 }
 
@@ -286,6 +300,7 @@ void lmLoop() {
                         lmssData[i] = lmssData[i - 1];
                     }
                     lmssData[0].l = lmssLevelSum / lmssLevelCnt;
+                    if( lmssData[0].l>10000 ) lmssData[0].l = 10000;
                     lmssData[0].t = t;
                     lmssUpdateStatus();
                     lmssLevelSum = 0; lmssLevelCnt = 0;
@@ -306,38 +321,38 @@ float lightMeterLevel() {
 }
 
 void lightMeterInit(bool sunTracker) {
-    lmssEnabled = sunTracker;
     lmDetected = lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
-
-    if (lmssEnabled) {
-        memset(lmssData, 0, sizeof(lmssData));
-        lmssLevelSum = 0;
-        lmssLevelCnt = 0;
-        storageRegisterBlock('L', &lmConfig, sizeof(lmConfig));
-        if ((lmConfig.sunriseLevel == 0) || (lmConfig.sunsetLevel == 0)) {
-            lmConfig.sunriseLevel = LMSS_SUNRISE_LEVEL;
-            lmConfig.sunsetLevel = LMSS_SUNSET_LEVEL;
-        }
-#ifdef Debug
-        randomSeed(micros());
-        for (int i = LMSS_TIMEFRAME-1; i>=0; i--) {
-            lmssData[i].t = millis() - ((unsigned long)i) * (unsigned long)60000L;
-            lmssData[i].l = /*80 - */(i / (float)LMSS_TIMEFRAME)*80 + random(20);
-            if (lmssData[i].l < 0) lmssData[i].l = 0.1;
-            aePrint((int)(lmssData[i].l * 100) / 100.0); aePrint(" ");
-        }
-        aePrintln();
-        double a, b;
-        aePrintln(lmssApproximate(&a, &b, false));
-        aePrintln(lmssApproximate(&a, &b, true));
-
-        aePrintln("");
-#endif
-        mqttRegisterCallbacks( lmMqttCallback, lmMqttConnect );
-    }
-
+    lmssEnabled = lmDetected && sunTracker;
+    
     if (lmDetected) {
         aePrintln(F("BH1750 found"));
+        if (lmssEnabled) {
+            memset(lmssData, 0, sizeof(lmssData));
+            lmssLevelSum = 0;
+            lmssLevelCnt = 0;
+            storageRegisterBlock('L', &lmConfig, sizeof(lmConfig));
+            if ((lmConfig.sunriseLevel == 0) || (lmConfig.sunsetLevel == 0)) {
+                lmConfig.sunriseLevel = LMSS_SUNRISE_LEVEL;
+                lmConfig.sunsetLevel = LMSS_SUNSET_LEVEL;
+            }
+#ifdef Debug
+            randomSeed(micros());
+            for (int i = LMSS_TIMEFRAME-1; i>=0; i--) {
+                lmssData[i].t = millis() - ((unsigned long)i) * (unsigned long)60000L;
+                lmssData[i].l = /*80 - */(i / (float)LMSS_TIMEFRAME)*80 + random(20);
+                if (lmssData[i].l < 0) lmssData[i].l = 0.1;
+                aePrint((int)(lmssData[i].l * 100) / 100.0); aePrint(" ");
+            }
+            aePrintln();
+            double a, b;
+            aePrintln(lmssApproximate(&a, &b, false));
+            aePrintln(lmssApproximate(&a, &b, true));
+    
+            aePrintln("");
+#endif
+            mqttRegisterCallbacks( lmMqttCallback, lmMqttConnect );
+        }
+
         registerLoop(lmLoop);
     } else {
         aePrintln(F("Error initialising BH1750"));
