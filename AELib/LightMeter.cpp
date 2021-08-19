@@ -117,7 +117,7 @@ void lmPublishStatus() {
         }
     }
     if( lmssEnabled ) {
-        static int _lmFilteredLevel = -1;
+        static float _lmFilteredLevel = -1;
         if( (lmFilteredLevel>0) && (lmFilteredLevel != _lmFilteredLevel) ) {
             dtostrf(lmFilteredLevel, 0, 1, b);
             if (mqttPublish(TOPIC_LMFilteredLevel, b, true)) {
