@@ -561,6 +561,26 @@ void commsEnableOTA() {
   //Serial.end();
 }
 
+// TRUE if local time is synchronized 
+bool commsTimeIsValid() {
+  return (commsGetTime() != NULL);
+}
+
+// Returns pointer to structure containing local time or NULL if local time is not yet synchronized.
+tm* commsGetTime(){
+#ifdef TIMEZONE
+  time_t currentTime = time(nullptr);
+  if( currentTime > 10000 ) {
+    return localtime(&currentTime);
+  } else {
+    return NULL;
+  }
+#else
+  return NULL;
+#endif  
+}
+
+
 void commsRestart() {
   storageSave();
   aePrintln(F("Restarting device..."));

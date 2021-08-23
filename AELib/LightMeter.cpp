@@ -43,7 +43,6 @@ struct LmConfig {
 struct LmssDataPoint {
     float l;
     unsigned long t;
-    //    bool f;
 };
 
 
@@ -57,8 +56,9 @@ bool lmssEnabled;
 LmssDataPoint lmssData[LMSS_TIMEFRAME];
 float lmssLevelSum;
 int lmssLevelCnt;
-
 int lmssDayPhase = LMSS_UNKNOWN;
+char lmssSunrise[8];
+char lmssSunset[8];
 
 
 byte lmMTReg = BH1750_DEFAULT_MTREG;
@@ -125,38 +125,28 @@ void lmPublishStatus() {
             }
         }
       
-#ifdef TIMEZONE      
-        time_t currentTime = time(nullptr);
-        if( currentTime > 10000 ) {
-#endif
-          
-            static int _dayPhase = -1;
-            if (lmssDayPhase != _dayPhase) {
-                if (lmssDayPhase == LMSS_DAY) {
-                    mqttPublish(TOPIC_LMPhase, "Day", true);
-                } else if (lmssDayPhase == LMSS_NIGHT) {
-                    mqttPublish(TOPIC_LMPhase, "Night", true);
-                } else {
-                    mqttPublish(TOPIC_LMPhase, "Unknown", true);
-                }
-
-#ifdef TIMEZONE
-                if (_dayPhase >= 0) {
-                    tm* lt = localtime(&currentTime);
-                    sprintf(b, "%02d:%02d", lt->tm_hour, lt->tm_min);
-
-                    if ((_dayPhase == LMSS_DAY) && (lmssDayPhase == LMSS_NIGHT)) {
-                        mqttPublish(TOPIC_LMSunset, b, true);
-                    } else if ((_dayPhase == LMSS_NIGHT) && (lmssDayPhase == LMSS_DAY)) {
-                        mqttPublish(TOPIC_LMSunrise, b, true);
-                    }
-                }
-#endif
-                _dayPhase = lmssDayPhase;
+        static int _dayPhase = -1;
+        if (lmssDayPhase != _dayPhase) {
+            if (lmssDayPhase == LMSS_DAY) {
+                mqttPublish(TOPIC_LMPhase, "Day", true);
+            } else if (lmssDayPhase == LMSS_NIGHT) {
+                mqttPublish(TOPIC_LMPhase, "Night", true);
+            } else {
+                mqttPublish(TOPIC_LMPhase, "Unknown", true);
             }
-#ifdef TIMEZONE
+            _dayPhase = lmssDayPhase;
         }
-#endif
+        
+        static char _lmssSunrise[8] = {0};
+        if( (strcmp(_lmssSunrise, lmssSunrise)!=0) && mqttPublish(TOPIC_LMSunrise, lmssSunrise, true) ) {
+            strcpy(_lmssSunrise, lmssSunrise);
+        }
+
+        static char _lmssSunset[8] = {0};
+        if( (strcmp(_lmssSunset, lmssSunset)!=0) && mqttPublish(TOPIC_LMSunset, lmssSunset, true) ) {
+            strcpy(_lmssSunset, lmssSunset);
+        }
+        
     }
 }
 #pragma endregion
@@ -253,16 +243,24 @@ void lmssUpdateStatus() {
       double b0 = b + a * ((double)(LMSS_TIMEFRAME-1)*60.0);
       if( b0<=0 ) b0 = 0.1;
       if( b<=0 ) b = 0.1;
-//        char s[31];
-//        dtostrf(b0, 0, 1, s);
-//        mqttPublish("Sensors/b0", s, false);
-//        dtostrf(b, 0, 1, s);
-//        mqttPublish("Sensors/b", s, false);
-        
-      if ( (lmssDayPhase != LMSS_DAY) && (b0 < lmConfig.sunriseLevel) && (b > lmConfig.sunriseLevel) ) {
+
+      if ( (lmssDayPhase == LMSS_NIGHT) && (b0 < lmConfig.sunriseLevel) && (b > lmConfig.sunriseLevel) ) {
+        // Sunrise detected!
           lmssDayPhase = LMSS_DAY;
-      } else if ( (lmssDayPhase != LMSS_NIGHT) && (b0 > lmConfig.sunsetLevel) && (b < lmConfig.sunsetLevel) ) {
+          tm* lt = commsGetTime();
+          if( lt ) sprintf(lmssSunrise, "%02d:%02d", lt->tm_hour, lt->tm_min);
+      } else if ( (lmssDayPhase == LMSS_DAY) && (b0 > lmConfig.sunsetLevel) && (b < lmConfig.sunsetLevel) ) {
+        // Sunset detected!
           lmssDayPhase = LMSS_NIGHT;
+          tm* lt = commsGetTime();
+          if( lt ) sprintf(lmssSunset, "%02d:%02d", lt->tm_hour, lt->tm_min);
+      } else if ( lmssDayPhase == LMSS_UNKNOWN ) {
+        // startup: initialize current day phase
+          if( (b > lmConfig.sunriseLevel) && (b > lmConfig.sunsetLevel) ) {
+            lmssDayPhase = LMSS_DAY;
+          } else if( (b < lmConfig.sunriseLevel) && (b < lmConfig.sunsetLevel) ) {
+            lmssDayPhase = LMSS_NIGHT;
+          }
       }
     }
 }
@@ -323,11 +321,13 @@ float lightMeterLevel() {
 void lightMeterInit(bool sunTracker) {
     lmDetected = lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
     lmssEnabled = lmDetected && sunTracker;
-    
     if (lmDetected) {
         aePrintln(F("BH1750 found"));
         if (lmssEnabled) {
+            memset(lmssSunrise, 0, sizeof(lmssSunrise));
+            memset(lmssSunset, 0, sizeof(lmssSunset));
             memset(lmssData, 0, sizeof(lmssData));
+            
             lmssLevelSum = 0;
             lmssLevelCnt = 0;
             storageRegisterBlock('L', &lmConfig, sizeof(lmConfig));
