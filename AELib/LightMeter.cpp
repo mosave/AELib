@@ -23,7 +23,7 @@ static char* TOPIC_LMPhase  PROGMEM = "Sensors/DayPhase";
 
 #define lmValidityTimeout ((unsigned long)(30*1000))
 // Normal sunset detection timeframe (minutes)
-#define LMSS_TIMEFRAME 30
+#define LMSS_TIMEFRAME 45
 // Minimum sunset detection timeframe (minutes) (wait after device start)
 #define LMSS_TIMEFRAME_MIN 10
 
@@ -49,7 +49,7 @@ struct LmssDataPoint {
 BH1750 lightMeter;
 
 float lmLevel;
-float lmFilteredLevel;
+float lmFilteredLevel=-1;
 bool lmDetected;
 
 bool lmssEnabled;
@@ -59,6 +59,7 @@ int lmssLevelCnt;
 int lmssDayPhase = LMSS_UNKNOWN;
 char lmssSunrise[8];
 char lmssSunset[8];
+bool lmssConfirmed;
 
 
 byte lmMTReg = BH1750_DEFAULT_MTREG;
@@ -103,18 +104,20 @@ void lmPublishStatus() {
     bool hindex = false;
     float delta;
 
-    static float _lmLevel = -1000;
-    delta = lmLevel - _lmLevel;  if (delta < 0) delta = -delta;
-    if (delta > lmAccuracy(lmLevel)) {
-        unsigned long t = millis();
-        static unsigned long publishedOn;
-        if ((delta > lmLevel / 3) || ((unsigned long)(t - publishedOn) > (unsigned long)60000)) {
-            dtostrf(lmLevel, 0, 1, b);
-            if (mqttPublish(TOPIC_LMLevel, b, true)) {
-                _lmLevel = lmLevel;
-                publishedOn = t;
-            }
-        }
+    if( lmLevel >= 0 ) {
+      static float _lmLevel = -1000;
+      delta = lmLevel - _lmLevel;  if (delta < 0) delta = -delta;
+      if (delta > lmAccuracy(lmLevel)) {
+          unsigned long t = millis();
+          static unsigned long publishedOn;
+          if ((delta > lmLevel / 3) || ((unsigned long)(t - publishedOn) > (unsigned long)60000)) {
+              dtostrf(lmLevel, 0, 1, b);
+              if (mqttPublish(TOPIC_LMLevel, b, true)) {
+                  _lmLevel = lmLevel;
+                  publishedOn = t;
+              }
+          }
+      }
     }
     if( lmssEnabled ) {
         static float _lmFilteredLevel = -1;
@@ -154,10 +157,9 @@ void lmPublishStatus() {
 #pragma region Sunset/Sunrise detection code
 
 void lmMqttConnect() {
-  aePrintln("Subscribing other topics");
-  lmPublishSettings();
   mqttSubscribeTopic( TOPIC_LMSetSunriseLevel );
   mqttSubscribeTopic( TOPIC_LMSetSunsetLevel );
+  lmPublishSettings();
 }
 
 bool lmMqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -203,15 +205,66 @@ bool lmssApproximate(double* a, double* b, bool filter) {
     double sT = 0;
     double sT2 = 0;
     double sTL = 0;
+    double dFilter = 1000000;
     int n = 0;
 
-    for (int i = 0; (i < LMSS_TIMEFRAME) && (lmssData[i].t); i++) {
+#ifdef Debug
+  char dbgs[255];
+#endif  
+    if( filter ) {
+#ifdef Debug
+  aePrint("Calculating quartile: ");
+#endif  
+      double delta[LMSS_TIMEFRAME/4+4];
+      memset(delta,0,sizeof(delta));
+      dFilter = 0;
+      for (int i = 0; i < LMSS_TIMEFRAME; i++) {
+        if( lmssData[i].t ) {
+          double t = (t0 - lmssData[i].t)/1000.0;
+          double d = abs( (*a) * t + (*b) - lmssData[i].l);
+
+#ifdef Debug
+  aePrint(d); aePrint(" ");
+#endif
+          n++;
+          for(int j=0;j<=LMSS_TIMEFRAME/4; j++ ) {
+            if(d>delta[j]) {
+              memmove( &delta[j+1], &delta[j], sizeof(double)*(LMSS_TIMEFRAME/4-j+1) );
+              delta[j] = d;
+              j = 100000;
+            }
+          }
+        }
+      }
+#ifdef Debug
+      aePrintln();
+      aePrint("delta: ");
+      for(int i=0;i<LMSS_TIMEFRAME/4+4;i++) {
+        aePrint(delta[i]); 
+        if(i==n/4) aePrint("|");
+        aePrint(" ");
+      }
+      aePrintln();
+    sprintf( dbgs, "n/4=%d, dFilter= %f ",n/4,delta[n/4]);
+    mqttPublish("Sensors/dbg1", dbgs, false);
+#endif
+      
+      if (n < 8) return false;
+      dFilter = delta[n/4];
+    }
+
+#ifdef Debug
+  aePrint("Approximating, dFilter="); aePrint(dFilter); aePrintln();
+#endif
+    n = 0;
+    for (int i = 0; i < LMSS_TIMEFRAME; i++) {
+      if(lmssData[i].t) {
         double l = lmssData[i].l;
         double t = (t0 - lmssData[i].t)/1000.0;
         if ( t <= LMSS_TIMEFRAME*60+5 ) {
             double l2 = l * l;
             // Take this point if filtering is off or point is "close" to graph
-            if (!filter || (abs((*a) * t + (*b) - l) < 100)) {
+            if( !filter || ( abs((*a) * t + (*b) - l) <= dFilter ) ) {
                 sT += t;
                 sL += l;
                 sT2 += t * t;
@@ -219,6 +272,7 @@ bool lmssApproximate(double* a, double* b, bool filter) {
                 n++;
             }
         }
+      }
     }
     if (n < 5) return false;
 
@@ -226,41 +280,69 @@ bool lmssApproximate(double* a, double* b, bool filter) {
     *a = ((n * sTL) - (sT * sL)) / (n * sT2 - sT * sT);
     *b = (sL - (*a) * sT) / n;
 #ifdef Debug
-    aePrint("L0="); aePrint(lmssData[0].l); 
-    aePrint("n="); aePrint(n); aePrint(" sT="); aePrint(sT); aePrint(" sT2="); aePrint(sT2); aePrint(" sL="); aePrint(sL); 
-    aePrint(" sTL="); aePrint(sTL);aePrint(" a="); aePrint(*a); aePrint(" b="); aePrintln(*b);
+    sprintf(dbgs,"L0=%f n=%d, sT=%f sT2=%f, sL=%f, sTL=%f, a=%f, b=%f, dFilter=%f",
+              lmssData[0].l, n, sT, sT2,    sL,    sTL,    (*a), (*b), dFilter ); 
+    aePrintln(dbgs);
+    mqttPublish("Sensors/dbg2", dbgs, false);
 #endif
     return true;
 }
 
 void lmssUpdateStatus() {
-    double a, b, sL2Filter, sL2Max;
-
+    double a, b;
     if (lmssApproximate(&a, &b, false) && lmssApproximate(&a, &b, true) ) {
-      // b = current light level approximation
-      lmFilteredLevel = b;
-      // b0 = "(TIMEFRAME-1) minutes ago" light level approximation
-      double b0 = b + a * ((double)(LMSS_TIMEFRAME-1)*60.0);
-      if( b0<=0 ) b0 = 0.1;
-      if( b<=0 ) b = 0.1;
+      double lMin = 100000;
+      double lMax = 0;
+      unsigned long t0 = millis();
+      for(int i=0; i<LMSS_TIMEFRAME; i++) {
+        if( lmssData[i].t>0 ) {
+          double t = (t0 - lmssData[i].t)/1000.0;
+          if ( t <= LMSS_TIMEFRAME*60+5 ) {
+            if( lMin > lmssData[i].l ) lMin = lmssData[i].l;
+            if( lMax < lmssData[i].l ) lMax = lmssData[i].l;
+          }
+        }
+      }
+      
+      // lB = current light level approximation
+      double lB = b;
+      // lA = "(TIMEFRAME-1) minutes ago" light level approximation
+      double lA = a * ((double)(LMSS_TIMEFRAME-1)*60.0) + b;
+      if( lA<=lMin ) lA = lMin; else if( lA>lMax ) lA = lMax;
+      if( lB<=lMin ) lB = lMin; else if( lB>lMax ) lB = lMax;
+      lmFilteredLevel = lB;
 
-      if ( (lmssDayPhase == LMSS_NIGHT) && (b0 < lmConfig.sunriseLevel) && (b > lmConfig.sunriseLevel) ) {
+      if ( (lmssDayPhase == LMSS_NIGHT) && (lA < lmConfig.sunriseLevel) && (lB > lmConfig.sunriseLevel) ) {
         // Sunrise detected!
           lmssDayPhase = LMSS_DAY;
-          tm* lt = commsGetTime();
-          if( lt ) sprintf(lmssSunrise, "%02d:%02d", lt->tm_hour, lt->tm_min);
-      } else if ( (lmssDayPhase == LMSS_DAY) && (b0 > lmConfig.sunsetLevel) && (b < lmConfig.sunsetLevel) ) {
+          if( lmssConfirmed ) {
+              tm* lt = commsGetTime();
+              if( lt ) sprintf(lmssSunrise, "%02d:%02d", lt->tm_hour, lt->tm_min);
+          }
+          lmssConfirmed = false;
+      } else if ( (lmssDayPhase == LMSS_DAY) && (lA > lmConfig.sunsetLevel) && (lB < lmConfig.sunsetLevel) ) {
         // Sunset detected!
           lmssDayPhase = LMSS_NIGHT;
-          tm* lt = commsGetTime();
-          if( lt ) sprintf(lmssSunset, "%02d:%02d", lt->tm_hour, lt->tm_min);
+          if( lmssConfirmed ) {
+            tm* lt = commsGetTime();
+            if( lt ) sprintf(lmssSunset, "%02d:%02d", lt->tm_hour, lt->tm_min);
+          }
+          lmssConfirmed = false;
       } else if ( lmssDayPhase == LMSS_UNKNOWN ) {
         // startup: initialize current day phase
-          if( (b > lmConfig.sunriseLevel) && (b > lmConfig.sunsetLevel) ) {
+          if( (lB > lmConfig.sunriseLevel) && (lB > lmConfig.sunsetLevel) ) {
             lmssDayPhase = LMSS_DAY;
-          } else if( (b < lmConfig.sunriseLevel) && (b < lmConfig.sunsetLevel) ) {
+            lmssConfirmed = true;
+          } else if( (lB < lmConfig.sunriseLevel) && (lB < lmConfig.sunsetLevel) ) {
             lmssDayPhase = LMSS_NIGHT;
+            lmssConfirmed = true;
           }
+      }
+      if ( (lmssDayPhase == LMSS_DAY) && (lB > lmConfig.sunriseLevel) && (lB > lmConfig.sunsetLevel) ) {
+        lmssConfirmed = true;
+      }
+      if ( (lmssDayPhase == LMSS_NIGHT) && (lB < lmConfig.sunriseLevel) && (lB < lmConfig.sunsetLevel) ) {
+        lmssConfirmed = true;
       }
     }
 }
@@ -278,37 +360,37 @@ void lmLoop() {
         lmLevel = lightMeter.readLightLevel();
 
         if (lmLevel >= 0) {
-            lmUpdatedOn = t;
             byte mtreg = BH1750_DEFAULT_MTREG;
             if (lmLevel <= 10.0) { //very low light environment
-                mtreg = 180;
-            } else  if (lmLevel > 40000.0) { // reduce measurement time - needed in direct sun light
+                mtreg = 138;
+            } else  if (lmLevel > 30000.0) { // reduce measurement time - needed in direct sun light
                 mtreg = 32;
             }
             if (mtreg != lmMTReg) {
                 lmMTReg = mtreg;
                 lightMeter.setMTreg(mtreg);
+                lmLevel = -1;
+                checkedOn -= (unsigned long)800;
             }
+        }
+
+        if (lmLevel >= 0) {
+            lmUpdatedOn = t;
             if (lmssEnabled) {
                 lmssLevelSum = lmssLevelSum + lmLevel;
                 lmssLevelCnt++;
                 if ((lmssData[0].t == 0) && (lmssLevelCnt > 10) ||
                     (lmssData[0].t > 0) && ((unsigned long)(t - lmssData[0].t) >= (unsigned long)60000)) {
-                    for (int i = LMSS_TIMEFRAME-1; i > 0; i--) {
-                        lmssData[i] = lmssData[i - 1];
-                    }
+                    memmove( &lmssData[1], &lmssData[0], sizeof(lmssData[0])*(LMSS_TIMEFRAME-1) );
+                    lmssData[0].t = t;
                     lmssData[0].l = lmssLevelSum / lmssLevelCnt;
                     if( lmssData[0].l>10000 ) lmssData[0].l = 10000;
-                    lmssData[0].t = t;
                     lmssUpdateStatus();
                     lmssLevelSum = 0; lmssLevelCnt = 0;
                 }
             }
-            lmPublishStatus();
-        } else {
-            //aePrintf("t=%f, h=%f hindex=%f\n", tahTemperature, tahHumidity, dht.computeHeatIndex(tahTemperature, tahHumidity, false));
-            lmPublishStatus();
         }
+        lmPublishStatus();
     }
 }
 bool lightMeterValid() {
@@ -337,10 +419,10 @@ void lightMeterInit(bool sunTracker) {
             }
 #ifdef Debug
             randomSeed(micros());
-            for (int i = LMSS_TIMEFRAME-1; i>=0; i--) {
+            for (int i = /*LMSS_TIMEFRAME*/ 10; i>=0; i--) {
                 lmssData[i].t = millis() - ((unsigned long)i) * (unsigned long)60000L;
-                lmssData[i].l = /*80 - */(i / (float)LMSS_TIMEFRAME)*80 + random(20);
-                if (lmssData[i].l < 0) lmssData[i].l = 0.1;
+                lmssData[i].l = /*80 - */(i / (float)LMSS_TIMEFRAME)*80 + random(50);
+                if (lmssData[i].l < 0) lmssData[i].l = 0;
                 aePrint((int)(lmssData[i].l * 100) / 100.0); aePrint(" ");
             }
             aePrintln();
