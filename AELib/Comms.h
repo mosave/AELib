@@ -20,6 +20,9 @@ void wifiDisable();
 char* mqttServer();
 bool mqttConnected();
 
+// Home Assistant
+bool haConnected();
+
 // All these functions treat TOPIC_Name as template and complete it with MQTT_Root, mqttClientId and optional variables (if passed)
 // mqttTopic(...) function will be used to transform TOPIC_Name
 

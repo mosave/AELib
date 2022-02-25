@@ -74,7 +74,13 @@ void btnLoop( Btn* btn, bool pressed, unsigned long t ) {
 
   if( strlen(btn->name)>0 ) {
     int state = pressed ? 1 : 0;
-    if( (state != btn->reportedState) && mqttPublish( TOPIC_State, btn->name, state, false  ) ) btn->reportedState = state;
+    if( mqttConnected() ) {
+        if ((state != btn->reportedState) && mqttPublish(TOPIC_State, btn->name, state, false)) {
+            btn->reportedState = state;
+        }
+    } else {
+        btn->reportedState = -1;
+    }
   }
 
   if( pressed != btn->pressed ) {
