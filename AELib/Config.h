@@ -42,6 +42,12 @@
 //#define MQTT_Root "test/%s/"
 
 
+// Topic where published list of root topics masks of devices controlled by external entity (e.g. Home Assistant)
+// Root topic may have '#' wildcard used
+// Use haControlled() function to know if Home Assistant is connected and list this device as controllable
+//#define TOPIC_HA_Controlled "homeassistant/controlled_devices"
+
+
 // If ButtonsEasyMode is defined then
 // * btnVeryLongPressed() will not be available
 // * btnLongPressed() will trigger BEFORE button release

@@ -55,20 +55,24 @@ static char* TOPIC_Version PROGMEM = "Version";
 #endif
 static char* TOPIC_Online PROGMEM = "Online";
 static char* TOPIC_Address PROGMEM = "Address";
-static char* TOPIC_Broker PROGMEM = "Broker";
 static char* TOPIC_RSSI PROGMEM = "RSSI";
 static char* TOPIC_Activity PROGMEM = "Activity";
 static char* TOPIC_Reset PROGMEM = "Reset";
 static char* TOPIC_FactoryReset PROGMEM = "FactoryReset";
 static char* TOPIC_EnableOTA PROGMEM = "EnableOTA";
+
 #ifndef WIFI_HostName
 static char* TOPIC_SetName PROGMEM = "SetName";
 #endif
+
 #ifndef MQTT_Root
 static char* TOPIC_SetRoot PROGMEM = "SetRoot";
 #endif
 
+#ifndef TOPIC_HA_Status
 static char* TOPIC_HA_Status PROGMEM = "homeassistant/status";
+#endif
+
 
 struct CommsConfig {
   // *********** Device configuration
@@ -104,6 +108,7 @@ unsigned long mqttActivity;
 bool mqttDisableCallback = false;
 char mqttServerAddress[32]="";
 bool commsHAConnected=false;
+bool commsHAControlled=false;
 
 WiFiClient wifiClient;
 PubSubClient mqttClient( wifiClient );
@@ -317,6 +322,49 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
       if ((payload != NULL) && (length > 3) && (length < 63)) {
           commsHAConnected = ( strncmp( (const char*)payload, "online", 6) == 0 );
       }
+      aePrintf("HA: Connected=%d\r\n", commsHAConnected);
+#ifdef TOPIC_HA_Controlled
+  } else if (strcmp(topic, TOPIC_HA_Controlled) == 0) {
+      if ((payload != NULL) && (length > 1)) {
+          char root[64];
+          commsHAControlled = false;
+          mqttTopic(root,""); // parse root topic
+          // Root is ended with "/", delete it
+          if( root[strlen(root)-1]=='/') root[strlen(root) - 1] = 0;
+
+          // Match root against list of controlled device topics
+          char bbb[64];
+          int pi = 0;
+          char* p = (char *)payload;
+		  while (pi < length) {
+			  while ((pi < length) && ( (*p) <= ' ')) {
+				  p++; pi++;
+			  }
+              if(pi>=length)break;
+              int l = 0;
+              while( (pi + l < length) && ( p[l] > ' ')) {
+                  l++;
+              }
+
+              if( l<=strlen(root) ) {
+                  if( p[l-1]=='#' ) {
+                      if( strncmp(p, root, l-1)==0 ) {
+                          commsHAControlled = true;
+                      }
+                  } else {
+                      if( (l==strlen(root)) && (strncmp(p, root, l) == 0) ) {
+                          commsHAControlled = true;
+                      }
+                  }
+              }
+              //memset(bbb, 0, 64); strncpy(bbb, p, l);
+              //aePrintf("mask len=%d, |%s| %d\r\n",l, bbb, commsHAControlled);
+              if( commsHAControlled ) break;
+              p += l;  pi += l;
+          }
+          aePrintf("HA: Controlled=%d\r\n",commsHAControlled);
+      }
+#endif
   } else if( mqttIsTopic( topic, TOPIC_FactoryReset ) ) {
     aePrintln(F("MQTT: Resetting settings"));
     storageReset();
@@ -363,6 +411,12 @@ bool haConnected() {
   return commsHAConnected;
 }
 
+#ifdef TOPIC_HA_Controlled
+bool haControlled() {
+    return commsHAControlled && haConnected();
+}
+#endif
+
 //**************************************************************************
 //                            Comms engine
 //**************************************************************************
@@ -404,7 +458,6 @@ void commsLoop() {
           ArduinoOTA.setPassword(WIFI_Password);
           ArduinoOTA.onStart([]() {
             mqttPublish( TOPIC_Online, (long)0, true );
-//            aePrintln(F("OTA: Updating firmware"));
             storageSave();
 #ifdef LittleFS
             LittleFS.end();
@@ -475,20 +528,23 @@ void commsLoop() {
           memset( mqttMdns, 0, sizeof(mqttMdns));
 
           aePrintln(F("MQTT: Querying MDNS for broker"));
-          mqttMdnsCnt = MDNS.queryService("mqtt", "tcp");
+          int n = MDNS.queryService("mqtt", "tcp", 1500U);
           if( mqttMdnsCnt>mqttMdnsSize ) mqttMdnsCnt=mqttMdnsSize;
-          aePrintf("MQTT: %d brokers advertised:\n", mqttMdnsCnt);
-          for (int i = 0; i < mqttMdnsCnt; ++i) {
+          aePrintf("MQTT: %d brokers advertised:\n", n);
+          mqttMdnsCnt = 0;
+          for (int i = 0; i < n; ++i) {
             IPAddress ip = MDNS.IP(i);
-            sprintf( mqttMdns[i].address, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-            aePrintf("MQTT: %d: %s:\n", (i+1), mqttMdns[i].address );
-            mqttMdns[i].port = MDNS.port(i);
+            sprintf(mqttMdns[mqttMdnsCnt].address, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+            mqttMdns[mqttMdnsCnt].port = MDNS.port(i);
+
+            bool valid = ip[0] || ip[1] || ip[2] || ip[3];
+            aePrintf("MQTT: %c %s:%d\n", valid?'+':'-', mqttMdns[mqttMdnsCnt].address, mqttMdns[mqttMdnsCnt].port );
+            if(valid ) mqttMdnsCnt++;
           }
         }
 
-
         if( mqttMdnsCnt>0 ) {
-          mqttTopic(willTopic, "*");
+          mqttTopic(willTopic, "#");
           aePrintf("MQTT: Connecting broker #%d %s:%d as %s\r\n", mqttMdnsIndex, mqttMdns[mqttMdnsIndex].address, mqttMdns[mqttMdnsIndex].port, willTopic );
           mqttClient.setServer( mqttMdns[mqttMdnsIndex].address, mqttMdns[mqttMdnsIndex].port );
           strcpy( mqttServerAddress, mqttMdns[mqttMdnsIndex].address );
@@ -524,6 +580,10 @@ void commsLoop() {
           mqttSubscribeTopic( TOPIC_FactoryReset );
           mqttSubscribeTopic( TOPIC_EnableOTA );
           mqttSubscribeTopicRaw( TOPIC_HA_Status );
+#ifdef TOPIC_HA_Controlled
+          mqttSubscribeTopicRaw(TOPIC_HA_Controlled);
+#endif
+
 #ifndef WIFI_HostName
           mqttSubscribeTopic( TOPIC_SetName );
 #endif  
@@ -539,7 +599,6 @@ void commsLoop() {
           IPAddress ip = WiFi.localIP();
           sprintf( willTopic, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
           mqttPublish( TOPIC_Address, willTopic, true  );
-          mqttPublish( TOPIC_Broker, mqttServerAddress, true );
           
           for(int i=0; i<mqttCbsCount; i++ ) {
             if( mqttCbs[i].connect != NULL ) mqttCbs[i].connect();
