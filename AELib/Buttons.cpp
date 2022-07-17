@@ -10,8 +10,12 @@
 #define ButtonNameSize 16
 // Anticlush filtering timeout, ms
 #define ClashTimeout ((unsigned long)75)
-#define LongPressTimeout ((unsigned long)1000)
-#define VeryLongPressTimeout ((unsigned long)10000)
+#ifndef LongPressTimeout
+    #define LongPressTimeout ((unsigned long)800)
+#endif
+#ifndef VeryLongPressTimeout
+    #define VeryLongPressTimeout ((unsigned long)10000)
+#endif
 
 // "%s" will be button name
 static char* TOPIC_State PROGMEM = "%s/State";
