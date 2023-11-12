@@ -1,8 +1,8 @@
 #include <errno.h>
-#include "Config.h"
+#include <BH1750.h> // Christopher Laws BH1750: https://github.com/claws/BH1750
+
+#include "AELib.h"
 #include "Comms.h"
-#include "Storage.h"
-#include "BH1750.h" // Christopher Laws BH1750: https://github.com/claws/BH1750
 
 static char* TOPIC_LMLevel PROGMEM = "Sensors/LightLevel";
 static char* TOPIC_LMValid PROGMEM = "Sensors/LightLevelValid";
@@ -412,7 +412,7 @@ void lightMeterInit(bool sunTracker) {
             
             lmssLevelSum = 0;
             lmssLevelCnt = 0;
-            storageRegisterBlock('L', &lmConfig, sizeof(lmConfig));
+            storageRegisterBlock(LM_StorageId, &lmConfig, sizeof(lmConfig));
             if ((lmConfig.sunriseLevel == 0) || (lmConfig.sunsetLevel == 0)) {
                 lmConfig.sunriseLevel = LMSS_SUNRISE_LEVEL;
                 lmConfig.sunsetLevel = LMSS_SUNSET_LEVEL;
@@ -435,7 +435,7 @@ void lightMeterInit(bool sunTracker) {
             mqttRegisterCallbacks( lmMqttCallback, lmMqttConnect );
         }
 
-        registerLoop(lmLoop);
+        aeRegisterLoop(lmLoop);
     } else {
         aePrintln(F("Error initialising BH1750"));
     }

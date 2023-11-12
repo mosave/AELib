@@ -1,9 +1,9 @@
 #ifndef comms_h
 #define comms_h
 
-#ifndef std::function
-#include <functional>
-#endif
+#include <time.h>
+
+#define COMMS_StorageId 'C'
 
 #define MQTT_CALLBACK std::function<bool(char*, uint8_t*, unsigned int)> callback
 #define MQTT_CONNECT std::function<void()> connect
@@ -12,14 +12,16 @@
 // Exported functions:
 // WiFi
 char* wifiHostName();
-bool wifiConnected();
-bool wifiEnabled();
-void wifiEnable();
-void wifiDisable();
 
-// MQTT
-char* mqttServer();
+bool wifiConnected();
 bool mqttConnected();
+
+void commsConnect();
+void commsDisconnect();
+
+bool commsEnabled();
+void commsEnable();
+void commsDisable();
 
 // Home Assistant
 bool haConnected();
@@ -74,6 +76,7 @@ void commsClearTopicAndRestart(char* topic, char* topicVar1);
 void commsClearTopicAndRestart(char* topic, char* topicVar1, char* topicVar2);
 
 // Comms engine
+void commsInit(bool isTimeCritical);
 void commsInit();
 
 #endif

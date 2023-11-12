@@ -1,9 +1,9 @@
 #include <Arduino.h>
-#include <EEPROM.h>
-#include "Config.h"
+#include <SparkFunHTU21D.h> // SparkFun HTU21D library: https://github.com/sparkfun/SparkFun_HTU21D_Breakout_Arduino_Library
+
+#include "AELib.h"
 #include "Comms.h"
-#include "SparkFunHTU21D.h" // SparkFun HTU21D library: https://github.com/sparkfun/SparkFun_HTU21D_Breakout_Arduino_Library
-#include "TAH_HTU21D.h"
+#include "TAH.h"
 
 static char* TOPIC_TAHValid PROGMEM = "Sensors/TAHValid";
 static char* TOPIC_Temperature PROGMEM = "Sensors/Temperature";
@@ -132,5 +132,5 @@ void tahLoop() {
 
 void tahInit() {
   tahSensor.begin();
-  registerLoop( tahLoop );
+  aeRegisterLoop( tahLoop );
 }

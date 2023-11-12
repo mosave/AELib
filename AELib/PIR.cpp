@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include "Buttons.h"
-#include "Config.h"
+
+#include "AELib.h"
 #include "Comms.h"
 #include "PIR.h"
 
@@ -276,5 +276,5 @@ void pirsLoop() {
 
 void pirInit() {
   mqttRegisterCallbacks( pirsMQTTCallback, pirsMQTTConnect );
-  registerLoop(pirsLoop);
+  aeRegisterLoop(pirsLoop);
 }

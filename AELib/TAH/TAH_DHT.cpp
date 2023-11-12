@@ -1,8 +1,8 @@
 #include <Arduino.h>
-#include <EEPROM.h>
-#include "Config.h"
+#include <DHTesp.h> // beegee-tokyo DHTesp: https://github.com/beegee-tokyo/DHTesp
+
+#include "AELib.h"
 #include "Comms.h"
-#include "DHTesp.h" // beegee-tokyo DHTesp: https://github.com/beegee-tokyo/DHTesp
 #include "TAH.h"
 
 #ifndef DHT_Pin
@@ -132,5 +132,5 @@ void tahInit() {
   } else {
     tahDetection = 0;
   }
-  registerLoop( tahLoop );
+  aeRegisterLoop( tahLoop );
 }

@@ -1,6 +1,7 @@
-#include "Config.h"
+#include <BMP280_DEV.h> // MartinL: https://github.com/MartinL1/BMP280_DEV
+
+#include "AELib.h"
 #include "Comms.h"
-#include "BMP280_DEV.h" // MartinL: https://github.com/MartinL1/BMP280_DEV
 #include "Barometer.h"
 
 static char* TOPIC_BaroTemperature PROGMEM = "Sensors/Temperature";
@@ -79,5 +80,5 @@ void barometerInit() {
   barometer.begin(BMP280_I2C_ALT_ADDR);
   barometer.setTimeStandby(TIME_STANDBY_2000MS);     // Set the standby time to 2 seconds
   barometer.startNormalConversion();
-  registerLoop(barometerLoop);
+  aeRegisterLoop(barometerLoop);
 }

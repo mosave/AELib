@@ -1,10 +1,10 @@
-#include "Config.h"
-#include "LED.h"
-#include "Storage.h"
+#include <Device.h>
+
+#include "AELib.h"
 #include "Comms.h"
+#include "LED.h"
 #include "Buttons.h"
 #include "Relays.h"
-
 
 #define BTN0 16
 #define BTN1 5
@@ -13,7 +13,6 @@
 #define RELAY1 14
 #define RELAY2 12
 #define RELAY3 13
-
 
 void mqttConnect() {
   aePrintln("Subscribing other topics");
@@ -30,7 +29,7 @@ void setup() {
   delay(500); 
   aePrintln();  aePrintln("Initializing");
 
-  storageInit();
+  aeInit();
   commsInit();
 
   relayInit();
@@ -41,12 +40,12 @@ void setup() {
 
   btnInit();
 
-  btnRegister( BTN0, NULL, false, true );
+  btnRegister( BTN0, false, true );
   btnDefaultFunction( BTN0, BDF_FactoryReset );
   
-  btnRegister( BTN1, NULL, false, true );
+  btnRegister( BTN1, false, true );
   
-  btnRegister( BTN2, NULL, false, true );
+  btnRegister( BTN2, false, true );
   
   mqttRegisterCallbacks( mqttCallback, mqttConnect );
 
@@ -54,7 +53,7 @@ void setup() {
 }
 
 void loop() {
-  Loop();
+  aeLoop();
 
 //  if( btnLongPressed( BTN0 ) ) {
 //    commsRestart();

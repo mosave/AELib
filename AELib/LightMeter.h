@@ -1,6 +1,7 @@
 #ifndef lightmeter_h
 #define lightmeter_h
 
+#define LM_StorageId 'L'
 
 bool lightMeterValid();
 float lightMeterLevel();

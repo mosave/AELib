@@ -1,13 +1,11 @@
 #include <Arduino.h>
-#include "Config.h"
+
+#include "AELib.h"
 #include "Comms.h"
-#include "Storage.h"
+#include "Relays.h"
 
 // Turn on debug output
 //#define Debug
-
-// Relays storage block Id
-#define RELAYS_StorageId 'R'
 
 // Maximum number of relays supported
 #define RelaysSize 8
@@ -26,7 +24,7 @@
 
 struct Relay {
   byte pin; // Pin number
-  bool inverted; // false if button connects to ground
+  bool inverted; 
   bool state; // inverted ? (digitalRead(pin) == LOW) : (digitalRead(pin) == HIGH );
   char name[RelayNameSize];
 
@@ -93,8 +91,8 @@ bool relaySwitch( byte pin ) {
   return relaySetState( pin, !relayState(pin) );
 }
 
-void relayRegister( byte pin, char* name, bool inverted = false ) {
-  if ( relayCount < RelaysSize - 1 ) {
+void relayRegister( byte pin, char* name, bool inverted ) {
+  if ( relayCount < RelaysSize ) {
     pinMode( pin, OUTPUT );
     relays[relayCount].pin = pin;
     relays[relayCount].inverted = inverted;
@@ -143,7 +141,7 @@ bool relaysMQTTCallback( char* topic, byte* payload, unsigned int length ) {
           if( (payload != NULL) && (length > 1) && (length<32) ) {
             memset( relaysConfig[i].name, 0, sizeof(relaysConfig[i].name) );
             strncpy( relaysConfig[i].name, ((char*)payload), length );
-            aePrint(F("MQTT: Button name set to ")); aePrintln(relaysConfig[i].name);
+            aePrint(F("MQTT: Relay name set to ")); aePrintln(relaysConfig[i].name);
             commsClearTopicAndRestart( "%s/SetName", relays[i].name );
           }
           return true;
@@ -210,7 +208,7 @@ void relayInit(bool enableMQTT) {
   if( relayEnableMQTT ) {
     mqttRegisterCallbacks( relaysMQTTCallback, relaysMQTTConnect );
   }
-  registerLoop( relaysLoop );
+  aeRegisterLoop( relaysLoop );
 }
 
 void relayInit() {
