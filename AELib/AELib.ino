@@ -55,25 +55,17 @@ void setup() {
 void loop() {
   aeLoop();
 
-//  if( btnLongPressed( BTN0 ) ) {
-//    commsRestart();
-//  }
-//  if( btnVeryLongPressed( BTN0 ) ) {
-//    if( wifiEnabled() ) {
-//      wifiDisable();
-//    } else {
-//      wifiEnable();
-//    }
-//  }
-  
-  if( btnPressed( BTN1, BTN2 ) ) relaySwitch( RELAY3 ); 
-  if( btnPressed( BTN1 ) ) relaySwitch( RELAY1 );
-  if( btnPressed( BTN2 ) ) relaySwitch( RELAY2 );
-
+  if (!haControlled()) {
+    if( btnPressed( BTN1, BTN2 ) ) relaySwitch( RELAY3 ); 
+    if( btnPressed( BTN1 ) ) relaySwitch( RELAY1 );
+    if( btnPressed( BTN2 ) ) relaySwitch( RELAY2 );
+  } else {
+    btnPublishKeypressEvent(true, false);
+  }
 
   if( btnState( BTN1 ) || btnState( BTN2 ) ) {
     ledMode( On );
-  } else if ( !wifiEnabled() ) {
+  } else if ( !commsEnabled() ) {
     ledMode( Off ) ;
   } else if ( mqttConnected() ) {
     ledMode( Standby ) ;

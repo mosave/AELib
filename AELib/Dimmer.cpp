@@ -88,7 +88,9 @@ struct DimmerChannel {
     float a;
 } channels[DIMMER_NCHANNELS] = {
     { DIMMER_CH1, 0, 0 },
-    { DIMMER_CH2, 0, 0 }
+#if DIMMER_NCHANNELS>1
+    { DIMMER_CH2, 0, 0 },
+#endif
 };
 
 unsigned long dimmerTransitionStarted = 0;
@@ -575,4 +577,3 @@ void dimmerInit() {
     aeRegisterLoop(dimmerLoop);
 }
 #pragma endregion
-

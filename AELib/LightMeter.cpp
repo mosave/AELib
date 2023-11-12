@@ -3,6 +3,7 @@
 
 #include "AELib.h"
 #include "Comms.h"
+#include "LightMeter.h"
 
 static char* TOPIC_LMLevel PROGMEM = "Sensors/LightLevel";
 static char* TOPIC_LMValid PROGMEM = "Sensors/LightLevelValid";
