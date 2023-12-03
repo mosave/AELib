@@ -55,6 +55,25 @@ void mqttSubscribeTopicRaw(char* topic);
 bool mqttPublishRaw(char* topic, long value, bool retained);
 bool mqttPublishRaw(char* topic, char* value, bool retained);
 
+// Parsers
+/// <summary>Check if string is "boolean": 
+/// "1"/"0", "on"/"off", "true"/"false","yes"/"no"
+/// </summary>
+/// <param name="str">String to parse</param>
+/// <param name="value">Variable to return either true or false</param>
+/// <returns>True if string passed contain one of the "boolean" values so "value" is valid</returns>
+bool parseBool(char* str, bool* value);
+
+/// <summary>
+/// Parse string expecting floating point number validating it with range specified
+/// </summary>
+/// <param name="str">String to be parsed</param>
+/// <param name="min">Minimum allowed number</param>
+/// <param name="max">Maximum allowed number</param>
+/// <param name="max">Parse result (if successful</param>
+/// <returns>True if string passed contain floating value and it fall into the [min..max] range so "value" is valid</returns>
+bool parseFloat(char* str, float min, float max, float* value);
+
 // Human activity
 void triggerActivity();
 

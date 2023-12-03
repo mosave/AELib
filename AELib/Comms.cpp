@@ -7,6 +7,7 @@
 #include <ESPmDNS.h>
 #endif
 
+#include <errno.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
 
@@ -134,6 +135,7 @@ MQTTCallbacks mqttCbs[MQTT_CbsSize];
 //**************************************************************************
 //                          WIFI helper functions
 //**************************************************************************
+#pragma region WiFi / Comm helpers
 char* wifiHostName() {
     return commsConfig.hostName;
 }
@@ -228,10 +230,12 @@ void commsReconnect() {
         commsConnect();
     }
 }
+#pragma endregion
 
 //**************************************************************************
 //                      MQTT helper functions
 //**************************************************************************
+#pragma region MQTT functions
 char* mqttServer() {
     return mqttServerAddress;
 }
@@ -427,9 +431,7 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
         commsEnableOTA();
     }
 }
-
-
-void commsPublishDeviceInfo() {
+void mqttPublishDeviceInfo() {
     char deviceInfo[256];
     char b[63];
     IPAddress ip = WiFi.localIP();
@@ -469,10 +471,50 @@ void commsPublishDeviceInfo() {
 #endif
     mqttPublish(TOPIC_DeviceInfo, deviceInfo, true);
 }
+#pragma endregion
+//**************************************************************************
+//                           MQTT parsers
+//**************************************************************************
+#pragma region parsers implementation
+bool parseBool(char* s, bool* b) {
+#define strIs( str ) (strcasecmp(s, str) == 0)
+
+    if (strIs("true") || strIs("on") || strIs("yes") || strIs("1")) {
+        *b = true;
+        return true;
+    }
+    if (strIs("false") || strIs("off") || strIs("no") || strIs("0")) {
+        *b = false;
+        return true;
+    }
+    return false;
+}
+
+bool parseInt(char* str, int min, int max, int* value) {
+    float f = 0;
+    if (parseFloat(str, (float)min, (float)max, &f)) {
+        *value = round(f);
+        return true;
+    }
+    return false;
+}
+
+bool parseFloat(char* str, float min, float max, float* value) {
+    errno = 0;
+    char* p;
+    float t = strtof(str, &p);
+    if ((errno == 0) && ((unsigned int)p > (unsigned int)str) && (*p == 0) && (t >= min) && (t <= max)) {
+        *value = t;
+        return true;
+    }
+    return false;
+}
+#pragma endregion
 
 //**************************************************************************
 //                            Home Assistant support
 //**************************************************************************
+#pragma region Home Assistant
 bool haConnected() {
     if (!mqttConnected()) return false;
     return commsHAConnected;
@@ -481,14 +523,15 @@ bool haConnected() {
 bool haControlled() {
     return commsHAControlled && haConnected();
 }
+#pragma endregion
 
 //**************************************************************************
 //                            Comms engine
 //**************************************************************************
-
+#pragma region Commmx main loop & initialization
 void commsLoop() {
 
-    if (commsConfig.disabled || commsOffline ) return;
+    if (commsConfig.disabled || commsOffline) return;
 
     static bool wasConnected = false;
     static unsigned long onlineReported = 0;
@@ -560,7 +603,7 @@ void commsLoop() {
                 int rssi = WiFi.RSSI();
                 int d = (rssi > commsRSSI) ? rssi - commsRSSI : commsRSSI - rssi;
                 if ((timedOut(t, rssiChecked, COMMS_RSSITimeout) && (d > 5)) || (d > 20)) {
-                    commsPublishDeviceInfo();
+                    mqttPublishDeviceInfo();
                 }
                 rssiChecked = t;
             }
@@ -651,7 +694,7 @@ void commsLoop() {
 #endif  
                     mqttPublish(TOPIC_Online, (long)1, true);
                     onlineReported = t;
-                    commsPublishDeviceInfo();
+                    mqttPublishDeviceInfo();
 
                     for (int i = 0; i < mqttCbsCount; i++) {
                         if (mqttCbs[i].connect != NULL) mqttCbs[i].connect();
@@ -760,3 +803,4 @@ void commsInit(bool isTimeCritical) {
 void commsInit() {
     commsInit(false);
 }
+#pragma endregion

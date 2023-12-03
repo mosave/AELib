@@ -33,6 +33,7 @@ byte storageSnapshot[STORAGE_Size];
 
 unsigned long changedOn = 0;
 
+#pragma region Storage functions
 // Search block of data in snapshot by blockId
 // Returns byte index in storageSnapshot array or -1 if not found
 void* storageFindBlock(char id) {
@@ -159,7 +160,9 @@ void storageReset() {
     delay(1000);
     ESP.restart();
 }
+#pragma endregion
 
+#pragma region Loop callback support
 void aeRegisterLoop(LOOP loop) {
     if (aelibLoopCount < AELIB_MaxLoops) {
         aelibLoops[aelibLoopCount] = loop;
@@ -170,6 +173,7 @@ void aeRegisterLoop(LOOP loop) {
 void aeInit() {
     storageInit(false);
 }
+#pragma endregion
 
 void aeLoop() {
     // Check if storage blocks changed
