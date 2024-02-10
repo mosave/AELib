@@ -61,8 +61,19 @@ bool mqttPublishRaw(char* topic, char* value, bool retained);
 /// </summary>
 /// <param name="str">String to parse</param>
 /// <param name="value">Variable to return either true or false</param>
-/// <returns>True if string passed contain one of the "boolean" values so "value" is valid</returns>
+/// <returns>True if string passed contain one of the "boolean" values</returns>
 bool parseBool(char* str, bool* value);
+
+/// <summary>
+/// Parse string expecting floating point number validating it with range specified
+/// </summary>
+/// <param name="str">String to parse</param>
+/// <param name="min">Minimum allowed number</param>
+/// <param name="max">Maximum allowed number</param>
+/// <param name="max">Parse result (if successful</param>
+/// <returns>True if string passed contain integer value within [min..max] range</returns>
+bool parseInt(char* str, int min, int max, int* value);
+
 
 /// <summary>
 /// Parse string expecting floating point number validating it with range specified
@@ -71,7 +82,7 @@ bool parseBool(char* str, bool* value);
 /// <param name="min">Minimum allowed number</param>
 /// <param name="max">Maximum allowed number</param>
 /// <param name="max">Parse result (if successful</param>
-/// <returns>True if string passed contain floating value and it fall into the [min..max] range so "value" is valid</returns>
+/// <returns>True if string passed contain floating value within [min..max] range</returns>
 bool parseFloat(char* str, float min, float max, float* value);
 
 // Human activity
