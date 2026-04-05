@@ -1,4 +1,4 @@
-#include <arduino.h>
+#include <Arduino.h>
 #include <stdarg.h>
 #include <errno.h>
 
@@ -26,7 +26,7 @@
 
 
 #ifndef DIMMER_PWM_FREQ
-#define DIMMER_PWM_FREQ 400
+#define DIMMER_PWM_FREQ 120
 #endif
 
 static char* TOPIC_Mode PROGMEM = "Dimmer/Mode";

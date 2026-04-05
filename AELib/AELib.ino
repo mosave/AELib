@@ -1,5 +1,3 @@
-#include <Device.h>
-
 #include "AELib.h"
 #include "Comms.h"
 #include "LED.h"
@@ -33,9 +31,9 @@ void setup() {
   commsInit();
 
   relayInit();
-  relayRegister( RELAY1, NULL, false );
-  relayRegister( RELAY2, NULL, false );
-  relayRegister( RELAY3, NULL, false );
+  relayRegister( RELAY1, false );
+  relayRegister( RELAY2, false );
+  relayRegister( RELAY3, false );
 
 
   btnInit();
@@ -55,12 +53,12 @@ void setup() {
 void loop() {
   aeLoop();
 
-  if (!haControlled()) {
+  if (!haConnected()) {
     if( btnPressed( BTN1, BTN2 ) ) relaySwitch( RELAY3 ); 
     if( btnPressed( BTN1 ) ) relaySwitch( RELAY1 );
     if( btnPressed( BTN2 ) ) relaySwitch( RELAY2 );
   } else {
-    btnPublishKeypressEvent(true, false);
+    btnPublishKeypressEvent(true);
   }
 
   if( btnState( BTN1 ) || btnState( BTN2 ) ) {

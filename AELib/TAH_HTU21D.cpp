@@ -1,9 +1,10 @@
 #include <Arduino.h>
-#include <SparkFunHTU21D.h> // SparkFun HTU21D library: https://github.com/sparkfun/SparkFun_HTU21D_Breakout_Arduino_Library
 
 #include "AELib.h"
 #include "Comms.h"
 #include "TAH.h"
+#ifdef TAH_HTU21D
+#include <SparkFunHTU21D.h> // SparkFun HTU21D library: https://github.com/sparkfun/SparkFun_HTU21D_Breakout_Arduino_Library
 
 static char* TOPIC_TAHValid PROGMEM = "Sensors/TAHValid";
 static char* TOPIC_Temperature PROGMEM = "Sensors/Temperature";
@@ -18,6 +19,10 @@ HTU21D tahSensor;
 
 float tahHumidity;
 float tahTemperature;
+
+float tahHumidityAdj;
+float tahTemperatureAdj;
+
 unsigned long tahUpdatedOn = 0;
 
 bool tahAvailable() {
@@ -69,6 +74,16 @@ float tahGetAbsHumidity() {
   return tahAbsHumidity();
 }
 
+int tahGetPressure() {
+    return 0;
+}
+int tahGetCO2() {
+    return 0;
+}
+int tahGetVOC() {
+    return 0;
+}
+
 void tahPublishStatus() {
   if( !mqttConnected() ) return;
 
@@ -88,9 +103,9 @@ void tahPublishStatus() {
 
   //aePrintf("t=%f, _t=%f, delta=%f\n", tahTemperature, _temperature, delta );
 
-  if( delta > 0.55 ){
+  if( delta > 0.2 ){
     hindex = true;
-    dtostrf( ((float)((int)(tahTemperature*2)))/2.0, 0, 1, b );
+    dtostrf( ((float)((int)(tahTemperature*5)))/5.0, 0, 1, b );
     if( mqttPublish( TOPIC_Temperature, b, true ) ) _temperature = tahTemperature;
   }
 
@@ -115,8 +130,8 @@ void tahLoop() {
   
   if( (unsigned long)(t - checkedOn) > (unsigned long)1000 ) {
     checkedOn = t;
-    float humidity = tahSensor.readHumidity();
-    float temperature = tahSensor.readTemperature();
+    float humidity = tahSensor.readHumidity() + tahHumidityAdj;
+    float temperature = tahSensor.readTemperature() + tahTemperatureAdj;
 
     if( (humidity < 990) && (temperature<990) ) {
       tahTemperature = temperature;
@@ -134,3 +149,4 @@ void tahInit() {
   tahSensor.begin();
   aeRegisterLoop( tahLoop );
 }
+#endif

@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include "Config.h"
 
-#define AELIB_VERSION "2.0.1"
+#define AELIB_VERSION "2.1.0"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
@@ -19,7 +19,7 @@
 #endif
 
 
-#define timedOut( tNow, t, timeout ) ((unsigned long)((unsigned long)tNow - (unsigned long)t) > (unsigned long)timeout)
+#define timedOut( tNow, t, timeout ) ((unsigned long)((unsigned long)(tNow) - (unsigned long)(t)) > (unsigned long)(timeout))
 
 
 typedef void (*LOOP)();

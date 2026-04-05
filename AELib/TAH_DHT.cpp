@@ -1,9 +1,11 @@
 #include <Arduino.h>
-#include <DHTesp.h> // beegee-tokyo DHTesp: https://github.com/beegee-tokyo/DHTesp
 
 #include "AELib.h"
 #include "Comms.h"
 #include "TAH.h"
+
+#ifdef TAH_DHT
+#include <DHTesp.h> // beegee-tokyo DHTesp: https://github.com/beegee-tokyo/DHTesp
 
 #ifndef DHT_Pin
   #define DHT_Pin 0
@@ -43,6 +45,17 @@ float tahGetAbsHumidity() {
   return 6.112*pow(2.71828,(17.67*tahTemperature)/(tahTemperature+243.5))*tahHumidity*2.1674/(275.15+tahTemperature);
 }
 
+int tahGetPressure() {
+    return 0;
+}
+
+int tahGetCO2() {
+    return 0;
+}
+
+int tahGetVOC() {
+    return 0;
+}
 
 void publishStatus() {
   if( !mqttConnected() ) return;
@@ -76,7 +89,7 @@ void publishStatus() {
     dtostrf( tahGetHeatIndex(), 0, 1, b );
     mqttPublish( TOPIC_HeatIndex, b, true );
     float absHumidity = tahGetAbsHumidity();
-    dtostrf( ((float)((int)(absHumidity*2)))/2.0, 0, 1, b );
+    dtostrf( ((float)((int)(absHumidity*5)))/5.0, 0, 1, b );
     mqttPublish( TOPIC_AbsHumidity, b, true );
   }
 }
@@ -134,3 +147,4 @@ void tahInit() {
   }
   aeRegisterLoop( tahLoop );
 }
+#endif

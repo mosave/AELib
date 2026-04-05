@@ -5,9 +5,9 @@
 ///      General IoT device configuration: WiFi, MQTT etc
 /////////////////////////////////////////////////////////////////////
 
-/// Define storage version if EEPROM stored data become incompatible and should be reset on next boot.
-/// Note: default is 0x45
-// #define STORAGE_Version 0x01
+/// EEPROM snapshot version byte. Default in AELib.cpp is 0x01.
+/// Bump this value when the storage layout becomes incompatible with previously saved data.
+// #define STORAGE_Version 0x02
 
 /// Firmware version number to display in device info topic: 
 /// "<MQTT Root>/DeviceInfo"
@@ -41,6 +41,9 @@
 /// * "%s"
 // #define MQTT_Root "test/%s/"
 
+/// Re-define PubSubClient maximum data packet size if required:
+// #define MQTT_MAX_PACKET_SIZE 1024
+
 
 /// Synchronize device time to TIMEZONE is set and NTP server is available.
 /// Check "tz.h" for timezone constants
@@ -56,16 +59,6 @@
 // #define aePrintf( ... )
 // #define aePrintln( ... )
 
-
-/// Home Assistant: Re-define default topic where external controlling entity like 
-/// HA may periodically publish list of controlled devices.
-/// Use haControlled() function to know if current device is in "conrolled" list
-/// Firmware expect list of "new-line" separated device root topics:
-///     House/LivingRoom/Switch1
-///     House/LivingRoom/Switch2
-///     House/Kitchen/Sensors
-/// Default is "homeassistant/controlled_devices".
-// #define TOPIC_HA_Controlled "homeassistant/controlled_devices"
 
 /////////////////////////////////////////////////////////////////////
 ///                   LED.h module configuration
@@ -94,22 +87,18 @@
 // #define DIMMER_CH1 2
 // #define DIMMER_CH2 -1
 
-/// Fixed dimmer mode:
-/// 0: Single channel
-/// 1: Two channels
-/// 2: White Cold/Warm
-/// User may configure runtime (MQTT topic "SetMode") If DIMMER_MODE not defined
-// #define DIMMER_MODE 0
+/// Fixed dimmer mode (compile-time lock). If not defined, mode is taken from EEPROM / MQTT Dimmer/SetMode.
+/// 0: Single channel, 1: Two channels, 2: White Cold/Warm
+// #define DIMMER_FIX_MODE 0
 
-
-/// PWM Frequency, default is 400 Hz
-// #define DIMMER_PWM_FREQ 400
+/// PWM frequency for analogWrite. Default in Dimmer.cpp is 120 Hz.
+// #define DIMMER_PWM_FREQ 120
 
 /////////////////////////////////////////////////////////////////////
 ///                            Other
 /////////////////////////////////////////////////////////////////////
 
-/// Define if I2S connected devices used e.g. Barometer
+/// I2C pins for sensors (e.g. Barometer, HTU21D)
 // #define I2C_SDA 12
 // #define I2C_SCL 13
 

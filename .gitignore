@@ -1,6 +1,7 @@
 #Visual Studio stuff
 .vs
 .vs/
+.cursor
 *.sln
 *.skb
 Config.AE.h

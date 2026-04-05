@@ -4,19 +4,19 @@
 #include "Comms.h"
 #include "Buttons.h"
 
-//#define Debug
+// #define Debug
 
 // Maximum number of buttons supported
 #define ButtonsSize 8
 // Anticlush filtering timeout, ms
-#define ClashTimeout ((unsigned long)75)
+#define ClashTimeout ((unsigned long)40)
 
 #ifndef LongPressTimeout
 #define LongPressTimeout ((unsigned long)800)
 #endif
 
 #ifndef RepeatTimeout
-#define RepeatTimeout ((unsigned long)1000)
+#define RepeatTimeout ((unsigned long)500)
 #endif
 
 #ifndef VeryLongPressTimeout
@@ -78,16 +78,19 @@ void btnShowStatus(Btn* btn) {
 #endif
 
 
-void btnInterrupt(int index) {
+void IRAM_ATTR btnInterrupt(int index) {
+    unsigned long t = millis();
     bool pressed = (digitalRead(buttons[index].pin) == ((buttons[index].inverted) ? HIGH : LOW));
     byte bitmask = (1 << index);
-    if (pressed != ((btnStates & bitmask)!=0) ) {
+    if (pressed != ((btnStates & bitmask) != 0)) {
         if (pressed) {
             btnStates |= bitmask;
         } else {
             btnStates &= ~bitmask;
         }
-        btnChangedOn = millis();
+        if (t > 1000L) {
+            btnChangedOn = t;
+        }
     }
 }
 void IRAM_ATTR btnInterrupt0() {
@@ -327,22 +330,35 @@ bool btnVeryLongPressed(byte btnPin, byte btnPin2) {
 static int btnLastPressB1 = -1;
 static int btnLastPressB2 = -1;
 static unsigned long btnLastPressed = 0;
+static char btnCounter = 0;
+static char btnLastEvent[24] = { 0 };
 
-
-bool btnSingleButtonEvent(char* eventName, bool repeats) {
+void btnPublishLastEvent() {
+    if (btnLastEvent[0] == 0) {
+        return;
+    }
+    mqttPublish(strcat(btnLastEvent, "X"), (long)btnCounter, false);
+    btnLastEvent[0] = 0;
+}
+bool btnSingleButtonEvent(char* eventName) {
     for (int b1 = 0; b1 < btnCount; b1++) {
         if (btnShortPressed(buttons[b1].pin)) {
-            if ((btnLastPressB1 != b1) || !repeats) {
-                sprintf(eventName, "Btn%dPressed", b1 + 1);
+            if ((btnLastPressB1 != b1)) {
+                btnPublishLastEvent();
+                btnCounter = 1;
             } else {
-                sprintf(eventName, "Btn%dRepeated", b1 + 1);
+                btnCounter++;
             }
+            sprintf(eventName, "Btn%dPressed", b1 + 1);
+            strcpy(btnLastEvent, eventName);
             btnLastPressB1 = b1;
             btnLastPressB2 = -1;
             return true;
         }
         if (btnLongPressed(buttons[b1].pin)) {
+            btnPublishLastEvent();
             sprintf(eventName, "Btn%dLongPressed", b1 + 1);
+            btnCounter = 1;
             btnLastPressB1 = -1;
             btnLastPressB2 = -1;
             return true;
@@ -359,21 +375,26 @@ bool btnSingleButtonEvent(char* eventName, bool repeats) {
     return false;
 }
 
-bool btnTwoButtonsEvent(char* eventName, bool repeats) {
+bool btnTwoButtonsEvent(char* eventName) {
     for (int b1 = 0; b1 < btnCount - 1; b1++) {
         for (int b2 = b1 + 1; b2 < btnCount; b2++) {
             if (btnShortPressed(buttons[b1].pin, buttons[b2].pin)) {
-                if ((btnLastPressB1 != b1) || (btnLastPressB2 != b2) || !repeats) {
-                    sprintf(eventName, "Btn%d%dPressed", b1 + 1, b2 + 1);
+                if ((btnLastPressB1 != b1) || (btnLastPressB2 != b2)) {
+                    btnPublishLastEvent();
+                    btnCounter = 1;
                 } else {
-                    sprintf(eventName, "Btn%d%dRepeated", b1 + 1, b2 + 1);
+                    btnCounter++;
                 }
+                sprintf(eventName, "Btn%d%dPressed", b1 + 1, b2 + 1);
+                strcpy(btnLastEvent, eventName);
                 btnLastPressB1 = b1;
                 btnLastPressB2 = b2;
                 return true;
             }
             if (btnLongPressed(buttons[b1].pin, buttons[b2].pin)) {
+                btnPublishLastEvent();
                 sprintf(eventName, "Btn%d%dLongPressed", b1 + 1, b2 + 1);
+                btnCounter = 1;
                 btnLastPressB1 = -1;
                 btnLastPressB2 = -1;
                 return true;
@@ -391,22 +412,25 @@ bool btnTwoButtonsEvent(char* eventName, bool repeats) {
     return false;
 }
 
-bool btnPublishKeypressEvent(bool combinations, bool repeats) {
+bool btnPublishKeypressEvent(bool combinations) {
     if (!mqttConnected()) return false;
     unsigned long t = millis();
     if ((btnLastPressed > 0) && timedOut(t, btnLastPressed, RepeatTimeout)) {
+        btnPublishLastEvent();
+
         btnLastPressB1 = -1;
         btnLastPressB2 = -1;
         btnLastPressed = 0;
+        btnCounter = 0;
     }
     char eventName[24] = { 0 };
 
-    if ((combinations && btnTwoButtonsEvent(eventName, repeats)) || btnSingleButtonEvent(eventName, repeats)) {
+    if ((combinations && btnTwoButtonsEvent(eventName)) || btnSingleButtonEvent(eventName)) {
         btnLastPressed = t;
 #ifdef Debug
         aePrintln(eventName);
 #endif
-        mqttPublish(eventName, (char*)NULL, false);
+        mqttPublish(eventName, (long)btnCounter, false);
         return true;
     }
     return false;
@@ -429,7 +453,6 @@ void btnsLoop() {
     // Limit button scan frequency
     if ((btnChangedOn > 0) && timedOut(t, btnChangedOn, ClashTimeout)) {
         btnChangedOn = 0;
-
         triggerActivity();
         // Process states;
         for (int i = 0; i < btnCount; i++) {

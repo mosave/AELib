@@ -25,7 +25,6 @@ void commsDisable();
 
 // Home Assistant
 bool haConnected();
-bool haControlled();
 
 // All these functions treat TOPIC_Name as template and complete it with MQTT_Root, mqttClientId and optional variables (if passed)
 // mqttTopic(...) function will be used to transform TOPIC_Name
@@ -85,12 +84,27 @@ bool parseInt(char* str, int min, int max, int* value);
 /// <returns>True if string passed contain floating value within [min..max] range</returns>
 bool parseFloat(char* str, float min, float max, float* value);
 
-// Human activity
+/// <summary>
+/// Announce human activity in ".../Activity" topic (button pressed / motion detected /etc)
+/// </summary>
 void triggerActivity();
 
+/// <summary>
+/// Subscribe to MQTT message received and MQTT connected events
+/// </summary>
+/// <param name="">MQTT message received callback function</param>
+/// <param name="">MQTT broker connected callback function</param>
 void mqttRegisterCallbacks(MQTT_CALLBACK, MQTT_CONNECT);
 
+/// <summary>
+/// Check if On The Air updates enabled
+/// </summary>
+/// <returns>True if OTA was enabled</returns>
 bool commsOTAEnabled();
+
+/// <summary>
+/// Enable On The Air updates
+/// </summary>
 void commsEnableOTA();
 
 // Be sure TIMEZONE is defined in config.h for time functions to work
@@ -100,13 +114,37 @@ bool commsTimeIsValid();
 // Returns pointer to structure containing local time or NULL if local time is not yet synchronized.
 tm* commsGetTime();
 
+/// <summary>
+/// Check if:
+/// * deviceId is a MAC address in format "01234567890A" (ignoring case):
+/// * deviceId is equal to wifi host name (ignoring case):
+/// * mqtt root ends with deviceId (ignoring case)
+/// Examples
+///   "SmartRelay14" will match "smartrelay14" host name
+///   "14/sr1" will match "House/14/SR1" device root
+/// </summary>
+/// <param name="deviceId">Device ID string to test</param>
+/// <returns>True if deviceId mach either host name or end of the device mqtt root path</returns>
+bool commsDeviceIdIs( char* deviceId);
+
+bool commsDeviceIdIs(char* deviceId, int len);
+
+/// <summary>
+/// Restart device
+/// </summary>
 void commsRestart();
 void commsClearTopicAndRestart(char* topic);
 void commsClearTopicAndRestart(char* topic, char* topicVar1);
 void commsClearTopicAndRestart(char* topic, char* topicVar1, char* topicVar2);
 
-// Comms engine
+/// <summary>
+/// Initialize Comms engine 
+/// </summary>
+/// <param name="isTimeCritical">Set to true to make wifi more responsive by disabling wifi modem power save mode</param>
 void commsInit(bool isTimeCritical);
-void commsInit();
 
+/// <summary>
+/// Initialize Comms engine with wifi modem power save mode allowed
+/// </summary>
+void commsInit();
 #endif

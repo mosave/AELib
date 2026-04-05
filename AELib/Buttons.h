@@ -30,7 +30,7 @@ bool btnLongPressed(byte btnPin, byte btnPin2);
 bool btnVeryLongPressed(byte btnPin, byte btnPin2);
 #endif
 
-bool btnPublishKeypressEvent(bool combinations, bool repeats);
+bool btnPublishKeypressEvent(bool combinations);
 
 void btnInit();
 #endif

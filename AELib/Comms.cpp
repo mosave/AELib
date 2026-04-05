@@ -75,10 +75,6 @@ static char* TOPIC_SetRoot PROGMEM = "SetRoot";
 static char* TOPIC_HA_Status PROGMEM = "homeassistant/status";
 #endif
 
-#ifndef TOPIC_HA_Controlled
-#define TOPIC_HA_Controlled "homeassistant/controlled_devices"
-#endif
-
 
 struct CommsConfig {
     // *********** Device configuration
@@ -118,7 +114,6 @@ unsigned long mqttActivity;
 bool mqttDisableCallback = false;
 char mqttServerAddress[32] = "";
 bool commsHAConnected = false;
-bool commsHAControlled = false;
 int commsRSSI = 0;
 
 WiFiClient wifiClient;
@@ -167,7 +162,6 @@ void commsDisable() {
     commsConfig.disabled = true;
 }
 
-
 void commsConnect() {
     if (commsConfig.disabled) return;
     commsOffline = false;
@@ -187,6 +181,16 @@ void commsConnect() {
 
     WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
+    //if (commsConnectAttempt > 1) {
+    //    WiFiPhyMode phyMode = WiFi.getPhyMode();
+    //    switch (phyMode) {
+    //    case WIFI_PHY_MODE_11N: phyMode = WIFI_PHY_MODE_11G; break;
+    //    case WIFI_PHY_MODE_11G: phyMode = WIFI_PHY_MODE_11B; break;
+    //    default: phyMode = WIFI_PHY_MODE_11N; break;
+    //    }
+    //    aePrint(F("WIFI: PhyMode=")); aePrintln(phyMode);
+    //    WiFi.setPhyMode(phyMode);
+    //}
 
     if (strlen(commsConfig.hostName) <= 0) {
         uint8_t macAddr[6];
@@ -235,7 +239,7 @@ void commsReconnect() {
 //**************************************************************************
 //                      MQTT helper functions
 //**************************************************************************
-#pragma region MQTT functions
+#pragma region mqttTopic / mqttSubscribe / mqttPublish / mqttDeviceIdIs
 char* mqttServer() {
     return mqttServerAddress;
 }
@@ -260,7 +264,7 @@ char* mqttTopic(char* buffer, char* TOPIC_Name, char* topicVar1, char* topicVar2
     return(buffer);
 }
 
-// Check if "topic" string conforms TOPIC_Name template (should be "%/Name")
+// Check if "topic" string conforms TOPIC_Name template
 bool mqttIsTopic(char* topic, char* TOPIC_Name) {
     char topicName[MQTT_MAX_TOPIC_LEN];
     return (strcmp(topic, mqttTopic(topicName, TOPIC_Name)) == 0);
@@ -326,10 +330,45 @@ bool mqttPublishRaw(char* topic, char* value, bool retained) {
     return mqttClient.publish(topic, value, retained);
 }
 
+// TRUE if:
+// * deviceId is equals to wifi host name (ignoring case):
+// * mqtt root ends with deviceId (ignoring case)
+bool commsDeviceIdIs( char* deviceId, int len) {
+    if (strlen(wifiHostName()) == len && strncasecmp(deviceId, wifiHostName(), len) == 0) {
+        return true;
+    }
+
+    char s[64];
+
+    if (len == 12) {
+        uint8_t macAddr[6];
+        WiFi.macAddress(macAddr);
+        sprintf(s, "%02X%02X%02X%02X%02X%02X", macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]);
+        if (strncasecmp(deviceId, s, 12) == 0) {
+            return true;
+        }
+    }
+
+    sprintf(s, commsConfig.mqttRoot, commsConfig.hostName);
+
+    // remove "/" at the end if any
+    int rLen = strlen(s);
+    if (s[rLen - 1] == '/') rLen--;
+
+    return (len <= rLen && strncasecmp(deviceId, &s[rLen - len], len) == 0);
+}
+
+bool commsDeviceIdIs( char* deviceId) {
+    int len = strlen(deviceId);
+    return commsDeviceIdIs(deviceId, len);
+}
+
 void triggerActivity() {
     mqttActivity = millis();
 }
+#pragma endregion
 
+#pragma region MQTT calbacks
 // Regiater Callback and Connect functions to call on MQTT events
 void mqttRegisterCallbacks(MQTT_CALLBACK, MQTT_CONNECT) {
     if (mqttCbsCount >= MQTT_CbsSize) return;
@@ -356,46 +395,6 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
             commsHAConnected = (strncmp((const char*)payload, "online", 6) == 0);
         }
         aePrintf("HA: Connected=%d\r\n", commsHAConnected);
-    } else if (strcmp(topic, TOPIC_HA_Controlled) == 0) {
-        if ((payload != NULL) && (length > 1)) {
-            char root[MQTT_MAX_TOPIC_LEN];
-            commsHAControlled = false;
-            mqttTopic(root, ""); // parse root topic
-            // Root is ended with "/", delete it
-            if (root[strlen(root) - 1] == '/') root[strlen(root) - 1] = 0;
-
-            // Match root against list of controlled device topics
-            char bbb[MQTT_MAX_TOPIC_LEN];
-            int pi = 0;
-            char* p = (char*)payload;
-            while (pi < length) {
-                while ((pi < length) && ((*p) <= ' ')) {
-                    p++; pi++;
-                }
-                if (pi >= length)break;
-                int l = 0;
-                while ((pi + l < length) && (p[l] > ' ')) {
-                    l++;
-                }
-
-                if (l <= strlen(root)) {
-                    if (p[l - 1] == '#') {
-                        if (strncmp(p, root, l - 1) == 0) {
-                            commsHAControlled = true;
-                        }
-                    } else {
-                        if ((l == strlen(root)) && (strncmp(p, root, l) == 0)) {
-                            commsHAControlled = true;
-                        }
-                    }
-                }
-                //memset(bbb, 0, 64); strncpy(bbb, p, l);
-                //aePrintf("mask len=%d, |%s| %d\r\n",l, bbb, commsHAControlled);
-                if (commsHAControlled) break;
-                p += l;  pi += l;
-            }
-            aePrintf("HA: Controlled=%d\r\n", commsHAControlled);
-        }
     } else if (mqttIsTopic(topic, TOPIC_FactoryReset)) {
         aePrintln(F("MQTT: Resetting settings"));
         storageReset();
@@ -403,34 +402,30 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
 
 #ifndef WIFI_HostName
     } else if (mqttIsTopic(topic, TOPIC_SetName)) {
-        if ((payload != NULL) && (length > 1) && (length < 32)) {
-            char topic[MQTT_MAX_TOPIC_LEN];
-            mqttTopic(topic, TOPIC_Online);
+        if ((payload != NULL) && (length > 1) && (length < 32)
+            && (strlen(commsConfig.hostName) != length) || strncmp(commsConfig.hostName, (char*)payload, length)) {
             memset(commsConfig.hostName, 0, sizeof(commsConfig.hostName));
             strncpy(commsConfig.hostName, ((char*)payload), length);
+            commsConfig.hostName[length] = 0;
             aePrint(F("MQTT: Device name set to ")); aePrintln(commsConfig.hostName);
-
-            mqttPublishRaw(topic, (long)0, true);
-            commsClearTopicAndRestart(TOPIC_SetName);
+            commsRestart();
         }
 #endif
 #ifndef MQTT_Root
     } else if (mqttIsTopic(topic, TOPIC_SetRoot)) {
-        if ((payload != NULL) && (length > 3) && (length < 63)) {
-            char topic[MQTT_MAX_TOPIC_LEN];
-            mqttTopic(topic, TOPIC_Online);
+        if ((payload != NULL) && (length > 3) && (length < 63)
+            && (strlen(commsConfig.mqttRoot) != length) || strncmp(commsConfig.mqttRoot, (char*)payload, length)) {
+            memset(commsConfig.mqttRoot, 0, sizeof(commsConfig.mqttRoot));
             strncpy(commsConfig.mqttRoot, ((char*)payload), length);
-            commsConfig.mqttRoot[length] = 0;
             aePrint(F("MQTT: Device root set to ")); aePrintln(commsConfig.mqttRoot);
-            storageSave();
-            mqttPublishRaw(topic, (long)0, true);
-            commsClearTopicAndRestart(TOPIC_SetRoot);
+            commsRestart();
         }
 #endif
     } else if (mqttIsTopic(topic, TOPIC_EnableOTA)) {
         commsEnableOTA();
     }
 }
+
 void mqttPublishDeviceInfo() {
     char deviceInfo[256];
     char b[63];
@@ -466,14 +461,15 @@ void mqttPublishDeviceInfo() {
     );
 
 #ifdef VERSION
-    static char* deviceInfoFirmwareString PROGMEM = "Firmware v";
+    static char* deviceInfoFirmwareString PROGMEM = "\nFirmware: ";
     strcat(strcat(deviceInfo, deviceInfoFirmwareString), VERSION);
 #endif
     mqttPublish(TOPIC_DeviceInfo, deviceInfo, true);
 }
 #pragma endregion
+
 //**************************************************************************
-//                           MQTT parsers
+//                             Parsers
 //**************************************************************************
 #pragma region parsers implementation
 bool parseBool(char* s, bool* b) {
@@ -518,10 +514,6 @@ bool parseFloat(char* str, float min, float max, float* value) {
 bool haConnected() {
     if (!mqttConnected()) return false;
     return commsHAConnected;
-}
-
-bool haControlled() {
-    return commsHAControlled && haConnected();
 }
 #pragma endregion
 
@@ -671,6 +663,9 @@ void commsLoop() {
                 if (tryConnect && mqttClient.connect(commsConfig.hostName, willTopic, 0, true, "0")) {
                     commsConnectAttempt = 0;
                     aePrintln(F("MQTT: Connected"));
+#ifdef MQTT_MAX_PACKET_SIZE
+                    mqttClient.setBufferSize(MQTT_MAX_PACKET_SIZE);
+#endif
 
 #ifdef TIMEZONE
                     // adjust time zone
@@ -683,7 +678,6 @@ void commsLoop() {
                     mqttSubscribeTopic(TOPIC_FactoryReset);
                     mqttSubscribeTopic(TOPIC_EnableOTA);
                     mqttSubscribeTopicRaw(TOPIC_HA_Status);
-                    mqttSubscribeTopicRaw(TOPIC_HA_Controlled);
 
 #ifndef WIFI_HostName
                     mqttSubscribeTopic(TOPIC_SetName);
