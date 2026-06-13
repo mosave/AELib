@@ -179,7 +179,7 @@ void btnLoop(Btn* btn, bool pressed, unsigned long t) {
 void btnRegister(byte btnPin, bool inverted, bool pullUp) {
     if (btnIndex(btnPin) >= 0) return;
 
-    if (btnCount < ButtonsSize - 1) {
+    if (btnCount < ButtonsSize) {
 
         buttons[btnCount].pin = btnPin;
         buttons[btnCount].inverted = inverted;
@@ -439,7 +439,6 @@ bool btnPublishKeypressEvent(bool combinations) {
 void btnsLoop() {
     static unsigned long _tmInterruptsEnabledButtonsUpdated = 0;
     unsigned long t = millis();
-    bool triggered = false;
 
     if (timedOut(t, _tmInterruptsEnabledButtonsUpdated, 20)) {
         _tmInterruptsEnabledButtonsUpdated = t;

@@ -101,7 +101,6 @@ bool wifiTimeCritical = false;
 unsigned long commsConnecting;
 unsigned long commsConnectAttempt = 0;
 unsigned long commsPaused;
-unsigned long commsPauseTimeout = COMMS_ConnectTimeout;
 
 int mqttMdnsIndex = 0;
 int mqttMdnsCnt = 0;
@@ -250,7 +249,7 @@ char* mqttTopic(char* buffer, char* TOPIC_Name, char* topicVar) {
     return mqttTopic(buffer, TOPIC_Name, topicVar, NULL);
 }
 char* mqttTopic(char* buffer, char* TOPIC_Name, char* topicVar1, char* topicVar2) {
-    char fstr[64]; // format string
+    char fstr[MQTT_MAX_TOPIC_LEN + sizeof(commsConfig.hostName)]; // format string
     char empty[2] = ""; // to replace NULL variables
 
     sprintf(fstr, commsConfig.mqttRoot, commsConfig.hostName);
@@ -403,7 +402,7 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
 #ifndef WIFI_HostName
     } else if (mqttIsTopic(topic, TOPIC_SetName)) {
         if ((payload != NULL) && (length > 1) && (length < 32)
-            && (strlen(commsConfig.hostName) != length) || strncmp(commsConfig.hostName, (char*)payload, length)) {
+            && ((strlen(commsConfig.hostName) != length) || strncmp(commsConfig.hostName, (char*)payload, length) != 0)) {
             memset(commsConfig.hostName, 0, sizeof(commsConfig.hostName));
             strncpy(commsConfig.hostName, ((char*)payload), length);
             commsConfig.hostName[length] = 0;
@@ -414,7 +413,7 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
 #ifndef MQTT_Root
     } else if (mqttIsTopic(topic, TOPIC_SetRoot)) {
         if ((payload != NULL) && (length > 3) && (length < 63)
-            && (strlen(commsConfig.mqttRoot) != length) || strncmp(commsConfig.mqttRoot, (char*)payload, length)) {
+            && ((strlen(commsConfig.mqttRoot) != length) || strncmp(commsConfig.mqttRoot, (char*)payload, length) != 0)) {
             memset(commsConfig.mqttRoot, 0, sizeof(commsConfig.mqttRoot));
             strncpy(commsConfig.mqttRoot, ((char*)payload), length);
             aePrint(F("MQTT: Device root set to ")); aePrintln(commsConfig.mqttRoot);
@@ -428,7 +427,6 @@ void mqttCallbackProxy(char* topic, byte* payload, unsigned int length) {
 
 void mqttPublishDeviceInfo() {
     char deviceInfo[256];
-    char b[63];
     IPAddress ip = WiFi.localIP();
     uint8_t macAddr[6];
     WiFi.macAddress(macAddr);
@@ -622,18 +620,25 @@ void commsLoop() {
                     memset(mqttMdns, 0, sizeof(mqttMdns));
 
                     aePrintln(F("MQTT: Querying MDNS for broker"));
-                    int n = MDNS.queryService("mqtt", "tcp", 1500U);
-                    if (mqttMdnsCnt > mqttMdnsSize) mqttMdnsCnt = mqttMdnsSize;
+                    WiFi.setSleepMode(WIFI_NONE_SLEEP);
+                    int n = MDNS.queryService("mqtt", "tcp", 3000U);
+                    WiFi.setSleepMode(wifiTimeCritical ? WIFI_NONE_SLEEP : WIFI_LIGHT_SLEEP);
+
                     aePrintf("MQTT: %d brokers advertised:\n", n);
                     mqttMdnsCnt = 0;
                     for (int i = 0; i < n; ++i) {
                         IPAddress ip = MDNS.IP(i);
-                        sprintf(mqttMdns[mqttMdnsCnt].address, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-                        mqttMdns[mqttMdnsCnt].port = MDNS.port(i);
-
-                        bool valid = ip[0] || ip[1] || ip[2] || ip[3];
-                        aePrintf("MQTT: %c %s:%d\n", valid ? '+' : '-', mqttMdns[mqttMdnsCnt].address, mqttMdns[mqttMdnsCnt].port);
-                        if (valid) mqttMdnsCnt++;
+                        char address[16];
+                        sprintf(address, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+                        bool valid = (ip[0] || ip[1] || ip[2] || ip[3]);
+                        if (valid && (mqttMdnsCnt < mqttMdnsSize)) {
+                            strcpy(mqttMdns[mqttMdnsCnt].address, address);
+                            mqttMdns[mqttMdnsCnt].port = MDNS.port(i);
+                            aePrintf("MQTT: + %s:%d\n", mqttMdns[mqttMdnsCnt].address, mqttMdns[mqttMdnsCnt].port);
+                            mqttMdnsCnt++;
+                        } else {
+                            aePrintf("MQTT: - %s:%d ignored\n", address, MDNS.port(i));
+                        }
                     }
                 }
 
@@ -767,7 +772,7 @@ void commsClearTopicAndRestart(char* topic, char* topicVar1) {
 }
 void commsClearTopicAndRestart(char* topic, char* topicVar1, char* topicVar2) {
     mqttDisableCallback = true;
-    mqttPublish(topic, topicVar1, topicVar2, (char*)NULL, false);
+    mqttPublish(topic, topicVar1, topicVar2, (char*)"", false);
     commsRestart();
 }
 
